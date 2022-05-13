@@ -1,4 +1,3 @@
-from collections import namedtuple
 import numpy as np
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -10,17 +9,14 @@ import os
 import functools
 from copy import deepcopy
 import itertools
-import typing
+from utils.config import ConfigBase
 
 from utils.metric_utils import compute_accuracy
 
 class AbstractTrainer(object):
-
     @classmethod
     def get_params(cls):
-        class Parameters(object):
-            pass
-        return Parameters
+        return None
 
     def __init__(self, params) -> None:
         pass
@@ -58,35 +54,37 @@ class AbstractTrainer(object):
     def test(self):
         raise NotImplementedError
 
-
+class TrainerParameters(ConfigBase):
+    def __init__(self) -> None:
+        super().__init__()
+        self.model = None
+        self.train_loader = None
+        self.val_loader = None
+        self.test_loader = None
+        self.args = None
+        self.optimizer = None
+        self.scheduler = None
+        self.device = None
+        self.logdir = None
+        self.loss_type = 'xent'
+        self.patience = 5
 
 class Trainer(AbstractTrainer):
     @classmethod
     def get_params(cls):
-        param_cls = super().get_params()
-        class Parameters(param_cls):
-            model = None
-            model = model
-            train_loader = None
-            val_loader = None
-            test_loader = None
-            args = None
-            optimizer = None
-            scheduler = None
-            device = None
+        return TrainerParameters
 
-    def __init__(self, model, train_loader, val_loader, test_loader, optimizer, scheduler, device, args):
+    def __init__(self, params: TrainerParameters):
         super(Trainer, self).__init__()
         
-        self.model = model
-        self.train_loader = train_loader
-        self.val_loader = val_loader
-        self.test_loader = test_loader
-        self.args = args
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.device = device
-        self.logger = SummaryWriter(log_dir=args.logdir, flush_secs=60)        
+        self.model = params.model
+        self.train_loader = params.train_loader
+        self.val_loader = params.val_loader
+        self.test_loader = params.test_loader
+        self.optimizer = params.optimizer
+        self.scheduler = params.scheduler
+        self.device = params.device
+        self.logger = SummaryWriter(log_dir=params.logdir, flush_secs=60)        
         self.early_stop = False
         self.tracked_metric = 'train_loss'
         self.metric_comparator = lambda x,y: x<y
@@ -116,10 +114,10 @@ class Trainer(AbstractTrainer):
         return wrapper
 
     def criterion(self, logits, y):
-        if self.args.loss_type == 'xent':
+        if self.loss_type == 'xent':
             loss = 1.0 * nn.functional.cross_entropy(logits, y, reduction='none')
         else:
-            raise NotImplementedError(self.args.loss_type)
+            raise NotImplementedError(self.loss_type)
         return loss    
 
     def train_step(self, batch, batch_idx):
@@ -165,7 +163,7 @@ class Trainer(AbstractTrainer):
             for k,v in logs.items():
                 metrics[k] = (i*metrics[k] + v)/(i+1)
             t.set_postfix(**metrics, best_metric=self.best_metric)
-            if self.args.debug and (i == 5):
+            if self.debug and (i == 5):
                 break
         return all_outputs, metrics
 
@@ -192,7 +190,7 @@ class Trainer(AbstractTrainer):
         return outputs, metrics
 
     def create_or_clear_cpdir(self, metric, epoch_idx):
-        outdir = os.path.join(self.args.logdir, 'checkpoints')
+        outdir = os.path.join(self.logdir, 'checkpoints')
         
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -215,7 +213,7 @@ class Trainer(AbstractTrainer):
             self.epochs_since_best += 1
 
     def check_early_stop(self):
-        if self.epochs_since_best > 3*self.args.patience:
+        if self.epochs_since_best > 3*self.patience:
             self.early_stop = True
     
     def epoch_end(self, epoch_idx, train_outputs, val_outputs, train_metrics, val_metrics):
@@ -240,9 +238,7 @@ class Trainer(AbstractTrainer):
         return outputs, metrics
 
     def train(self):
-        torch.save(self.args, os.path.join(self.args.logdir, 'args.pkl'))
-
-        for i in range(self.args.nepochs):
+        for i in range(self.nepochs):
             train_output, train_metrics = self.train_loop(i, post_loop_fn=self.train_epoch_end)
             val_output, val_metrics = self.val_loop(i, post_loop_fn=self.val_epoch_end)
             self.epoch_end(i, train_output, val_output, train_metrics, val_metrics)
@@ -252,7 +248,7 @@ class Trainer(AbstractTrainer):
 
         metrics = train_metrics
         metrics.update(val_metrics, post_loop_fn=self.test_epoch_end)
-        self.logger.add_hparams(dict(vars(self.args)), {self.tracked_metric: metrics[self.tracked_metric]})
+        # self.logger.add_hparams(dict(vars(self.args)), {self.tracked_metric: metrics[self.tracked_metric]})
         self.model = torch.load(self.best_checkpoint)
 
     def test(self):        
