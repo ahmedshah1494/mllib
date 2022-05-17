@@ -1,23 +1,17 @@
+from typing import Any, Callable
 import numpy as np
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch import nn
-import torchvision
 from tqdm import tqdm
-import argparse
 import os
-import functools
-from copy import deepcopy
-import itertools
-from utils.config import ConfigBase
+from models.base_models import AbstractModel
+from param import BaseParameters, Parameterized
+from runners.configs import BaseExperimentConfig, TrainingParams
 
 from utils.metric_utils import compute_accuracy
 
-class AbstractTrainer(object):
-    @classmethod
-    def get_params(cls):
-        return None
-
+class AbstractTrainer(Parameterized):
     def __init__(self, params) -> None:
         pass
 
@@ -54,44 +48,43 @@ class AbstractTrainer(object):
     def test(self):
         raise NotImplementedError
 
-class TrainerParameters(ConfigBase):
-    def __init__(self) -> None:
-        super().__init__()
-        self.model = None
-        self.train_loader = None
-        self.val_loader = None
-        self.test_loader = None
-        self.args = None
-        self.optimizer = None
-        self.scheduler = None
-        self.device = None
-        self.logdir = None
-        self.loss_type = 'xent'
-        self.patience = 5
-
 class Trainer(AbstractTrainer):
+    class TrainerParams(BaseParameters):
+        model: AbstractModel = None
+        train_loader: torch.utils.data.DataLoader = None
+        val_loader: torch.utils.data.DataLoader = None
+        test_loader: torch.utils.data.DataLoader = None
+        optimizer: torch.optim.Optimizer = None
+        scheduler: torch.optim.lr_scheduler._LRScheduler = None
+        device: torch.device = torch.device('cpu')
+        training_params: TrainingParams = None        
+
     @classmethod
     def get_params(cls):
-        return TrainerParameters
+        return cls.TrainerParams(cls)
 
-    def __init__(self, params: TrainerParameters):
-        super(Trainer, self).__init__()
+    def __init__(self, params: TrainerParams):
+        super(Trainer, self).__init__(params)
         
         self.model = params.model
         self.train_loader = params.train_loader
         self.val_loader = params.val_loader
         self.test_loader = params.test_loader
+        self.nepochs = params.training_params.nepochs
         self.optimizer = params.optimizer
         self.scheduler = params.scheduler
         self.device = params.device
-        self.logger = SummaryWriter(log_dir=params.logdir, flush_secs=60)        
-        self.early_stop = False
-        self.tracked_metric = 'train_loss'
-        self.metric_comparator = lambda x,y: x<y
+        self.logdir = params.training_params.logdir
+        self.logger = SummaryWriter(log_dir=params.training_params.logdir, flush_secs=60)
+        self.early_stop_patience = params.training_params.early_stop_patience
+        self.tracked_metric = params.training_params.tracked_metric
+        self.tracking_mode = params.training_params.tracking_mode
+        self.debug = params.training_params.debug
 
-    def track_metric(self, metric_name, direction):
-        self.tracked_metric = metric_name
-        if direction == 'min':
+        self.track_metric()
+
+    def track_metric(self):
+        if self.tracking_mode == 'min':
             self.best_metric = float('inf')
             self.epochs_since_best = 0
             self.metric_comparator = lambda x,y: x<y
@@ -125,8 +118,7 @@ class Trainer(AbstractTrainer):
         x = x.to(self.device)
         y = y.to(self.device)
 
-        logits = self.model(x)
-        loss = self.criterion(logits, y)
+        logits, loss = self.model.compute_loss(x, y)
         acc, correct = compute_accuracy(logits.detach().cpu(), y.detach().cpu())
         
         loss = loss.mean()
@@ -213,15 +205,13 @@ class Trainer(AbstractTrainer):
             self.epochs_since_best += 1
 
     def check_early_stop(self):
-        if self.epochs_since_best > 3*self.patience:
-            self.early_stop = True
+        return self.epochs_since_best > self.early_stop_patience
     
     def epoch_end(self, epoch_idx, train_outputs, val_outputs, train_metrics, val_metrics):
         metrics = train_metrics
         metrics.update(val_metrics)
 
         self.checkpoint(metrics[self.tracked_metric], epoch_idx, self.metric_comparator)
-        self.check_early_stop()
         
         if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
             self.scheduler.step(metrics[self.tracked_metric])
@@ -242,8 +232,9 @@ class Trainer(AbstractTrainer):
             train_output, train_metrics = self.train_loop(i, post_loop_fn=self.train_epoch_end)
             val_output, val_metrics = self.val_loop(i, post_loop_fn=self.val_epoch_end)
             self.epoch_end(i, train_output, val_output, train_metrics, val_metrics)
-            
-            if self.early_stop:
+
+                       
+            if self.check_early_stop():
                 break
 
         metrics = train_metrics
