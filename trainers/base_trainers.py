@@ -1,15 +1,16 @@
 from typing import Any, Callable
+from attrs import define
 import numpy as np
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch import nn
 from tqdm import tqdm
 import os
-from models.base_models import AbstractModel
-from param import BaseParameters, Parameterized
-from runners.configs import BaseExperimentConfig, TrainingParams
+from mllib.models.base_models import AbstractModel
+from mllib.param import BaseParameters, Parameterized
+from mllib.runners.configs import BaseExperimentConfig, TrainingParams
 
-from utils.metric_utils import compute_accuracy
+from mllib.utils.metric_utils import compute_accuracy
 
 class AbstractTrainer(Parameterized):
     def __init__(self, params) -> None:
@@ -49,6 +50,7 @@ class AbstractTrainer(Parameterized):
         raise NotImplementedError
 
 class Trainer(AbstractTrainer):
+    @define(slots=False)
     class TrainerParams(BaseParameters):
         model: AbstractModel = None
         train_loader: torch.utils.data.DataLoader = None
@@ -104,21 +106,19 @@ class Trainer(AbstractTrainer):
             output['loss'].backward()
             self.optimizer.step()
             return output, logs
-        return wrapper
+        return wrapper    
 
-    def criterion(self, logits, y):
-        if self.loss_type == 'xent':
-            loss = 1.0 * nn.functional.cross_entropy(logits, y, reduction='none')
-        else:
-            raise NotImplementedError(self.loss_type)
-        return loss    
-
-    def train_step(self, batch, batch_idx):
+    def _get_outputs_and_loss(self, x, y):
+        return self.model.compute_loss(x, y)
+    
+    def _move_batch_to_device(self, batch):
         x,y = batch        
         x = x.to(self.device)
         y = y.to(self.device)
-
-        logits, loss = self.model.compute_loss(x, y)
+        return x,y
+        
+    def train_step(self, batch, batch_idx):
+        logits, loss = self._get_outputs_and_loss(x, y)
         acc, correct = compute_accuracy(logits.detach().cpu(), y.detach().cpu())
         
         loss = loss.mean()
@@ -146,7 +146,8 @@ class Trainer(AbstractTrainer):
         t = tqdm(enumerate(loader))
         t.set_description('epoch %d' % epoch_idx)
         all_outputs = []
-        for i, batch in t:            
+        for i, batch in t:
+            batch = self._move_batch_to_device(batch)
             outputs, logs = func(batch, i)
             all_outputs.append(outputs)
             self._log(logs, i + epoch_idx*len(loader))
