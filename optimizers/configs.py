@@ -2,56 +2,41 @@ from typing import NamedTuple, Type
 import attrs
 from attrs import define
 import torch
-from param import BaseParameters, Parameterized
+from mllib.param import BaseParameters, Parameterized
 
-from utils.config import ConfigBase
+from mllib.utils.config import ConfigBase
 
+@define(slots=False)
+class AbstractOptimizerConfig:
+    _cls: Type[torch.optim.Optimizer] = None
+    lr: float = 0.1
+    weight_decay: float = 0.
 
-class AbstractOptimizerConfig(Parameterized):
-    @define(slots=False)
-    class OptimizerArgs:
-        lr: float = 0.1
-        weight_decay: float = 0.
+    def asdict(self):
+        return attrs.asdict(self, filter=lambda attr, value: (not attr.name.startswith('_')))
 
-        def asdict(self):
-            return attrs.asdict(self)
-
-    cls: Type[torch.optim.Optimizer] = None
-
-    @classmethod
-    def get_params(cls):
-        return cls.OptimizerArgs()
-
+@define(slots=False)
 class AdamOptimizerConfig(AbstractOptimizerConfig):
-    cls = torch.optim.Adam
+    _cls: Type[torch.optim.Optimizer] = torch.optim.Adam
+    lr: float = 1e-3
 
-    class OptimizerArgs(AbstractOptimizerConfig.OptimizerArgs):
-        lr: float = 1e-3
-
+@define(slots=False)
 class SGDOptimizerConfig(AbstractOptimizerConfig):
-    cls = torch.optim.SGD
-
-    class OptimizerArgs(AbstractOptimizerConfig.OptimizerArgs):
-        momentum: float = 0.
-        nesterov: bool = False
+    _cls: Type[torch.optim.Optimizer] = torch.optim.SGD
+    momentum: float = 0.
+    nesterov: bool = False
     
 
-class AbstractSchedulerConfig(Parameterized):
-    cls: Type[torch.optim.lr_scheduler._LRScheduler] = None
+@define(slots=False)
+class AbstractSchedulerConfig:
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = None
     
-    @define(slots=False)
-    class SchedulerArgs:
-        def asdict(self):
-            return attrs.asdict(self)
+    def asdict(self):
+        return attrs.asdict(self, filter=lambda attr, value: (not attr.name.startswith('_')))
 
-    @classmethod
-    def get_params(cls):
-        return cls.SchedulerArgs()
-
+@define(slots=False)
 class ReduceLROnPlateauConfig(AbstractSchedulerConfig):
-    cls = torch.optim.lr_scheduler.ReduceLROnPlateau
-
-    class SchedulerArgs(AbstractSchedulerConfig.SchedulerArgs):
-        patience: int = 5
-        mode: str = 'min'
-        factor: float = 0.5
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = torch.optim.lr_scheduler.ReduceLROnPlateau
+    patience: int = 5
+    mode: str = 'min'
+    factor: float = 0.5
