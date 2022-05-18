@@ -3,10 +3,10 @@ from sched import scheduler
 from typing import Tuple
 from sklearn import datasets
 import torch
-from datasets.dataset_factory import ImageDatasetFactory
-from tasks.base_tasks import AbstractTask
-from trainers.base_trainers import Trainer
-from utils.config import ConfigBase
+from mllib.datasets.dataset_factory import ImageDatasetFactory
+from mllib.tasks.base_tasks import AbstractTask
+from mllib.trainers.base_trainers import Trainer
+from mllib.utils.config import ConfigBase
 
 
 class AbstractRunner(object):
@@ -46,6 +46,7 @@ class BaseRunner(AbstractRunner):
     def create_model(self) -> torch.nn.Module:
         p = self.task.get_model_params()
         model = p.cls(p)
+        print(model)
         return model
 
     def get_experiment_dir(self, logdir, model_name, exp_name):
@@ -60,9 +61,9 @@ class BaseRunner(AbstractRunner):
         model = self.create_model()
         exp_params = self.task.get_experiment_params()
         opt_params = exp_params.optimizer_config
-        optimizer = opt_params.cls(model.parameters(), **(opt_params.get_params().asdict()))
+        optimizer = opt_params._cls(model.parameters(), **(opt_params.asdict()))
         sch_params = exp_params.scheduler_config
-        scheduler = sch_params.cls(optimizer, **(sch_params.get_params().asdict()))
+        scheduler = sch_params._cls(optimizer, **(sch_params.asdict()))
 
         train_loader, val_loader, test_loader = self.create_dataloaders()
 
