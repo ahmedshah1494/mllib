@@ -1,8 +1,8 @@
 
 from attrs import define
-from param import BaseParameters
-from utils.config import ConfigBase
-from optimizers.configs import AbstractOptimizerConfig, AbstractSchedulerConfig
+from mllib.param import BaseParameters
+from mllib.utils.config import ConfigBase
+from mllib.optimizers.configs import AbstractOptimizerConfig, AbstractSchedulerConfig
 
 @define(slots=False)
 class TrainingParams:

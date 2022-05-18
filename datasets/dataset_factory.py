@@ -5,9 +5,9 @@ from attrs import define
 import numpy as np
 import torch
 import torchvision
-from param import BaseParameters, Parameterized
+from mllib.param import BaseParameters, Parameterized
 
-from utils.image_dataset_utils import filter_dataset_by_target, make_val_dataset
+from mllib.utils.image_dataset_utils import filter_dataset_by_target, make_val_dataset
 
 class AutoName(Enum):
     def _generate_next_value_(name, start, count, last_values):

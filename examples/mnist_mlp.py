@@ -1,5 +1,5 @@
-from runners.base_runners import BaseRunner
-from tasks.base_tasks import MNISTMLP
+from mllib.runners.base_runners import BaseRunner
+from mllib.tasks.base_tasks import MNISTMLP
 
 
 task = MNISTMLP()

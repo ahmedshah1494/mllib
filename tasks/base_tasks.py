@@ -1,10 +1,10 @@
 import numpy as np
 import torch
-from datasets.dataset_factory import ImageDatasetFactory, SupportedDatasets
-from models.base_models import MLPClassifier
-from optimizers.configs import AdamOptimizerConfig, ReduceLROnPlateauConfig
-from param import BaseParameters
-from runners.configs import BaseExperimentConfig
+from mllib.datasets.dataset_factory import ImageDatasetFactory, SupportedDatasets
+from mllib.models.base_models import MLPClassifier
+from mllib.optimizers.configs import AdamOptimizerConfig, ReduceLROnPlateauConfig
+from mllib.param import BaseParameters
+from mllib.runners.configs import BaseExperimentConfig
 
 class AbstractTask(object):
     def get_dataset_params(self) -> BaseParameters:
