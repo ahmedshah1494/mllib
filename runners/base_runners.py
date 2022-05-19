@@ -1,7 +1,6 @@
 import os
 from sched import scheduler
 from typing import Tuple
-from sklearn import datasets
 import torch
 from mllib.datasets.dataset_factory import ImageDatasetFactory
 from mllib.tasks.base_tasks import AbstractTask
@@ -46,7 +45,6 @@ class BaseRunner(AbstractRunner):
     def create_model(self) -> torch.nn.Module:
         p = self.task.get_model_params()
         model = p.cls(p)
-        print(model)
         return model
 
     def get_experiment_dir(self, logdir, model_name, exp_name):
@@ -57,14 +55,22 @@ class BaseRunner(AbstractRunner):
         logdir = os.path.join(logdir, str(exp_num))
         return logdir
 
-    def create_trainer(self) -> Trainer:
-        model = self.create_model()
+    def create_optimizer(self, parameters):
         exp_params = self.task.get_experiment_params()
         opt_params = exp_params.optimizer_config
-        optimizer = opt_params._cls(model.parameters(), **(opt_params.asdict()))
+        optimizer = opt_params._cls(parameters, **(opt_params.asdict()))
+        return optimizer
+
+    def create_scheduler(self, optimizer):
+        exp_params = self.task.get_experiment_params()
         sch_params = exp_params.scheduler_config
         scheduler = sch_params._cls(optimizer, **(sch_params.asdict()))
+        return scheduler
 
+    def create_trainer_params(self) -> Trainer.TrainerParams:
+        model = self.create_model()
+        optimizer = self.create_optimizer(model.parameters())
+        scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
 
         device = torch.device('gpu') if torch.cuda.is_available() else torch.device('cpu')
@@ -78,11 +84,16 @@ class BaseRunner(AbstractRunner):
         trainer_params.scheduler = scheduler
         trainer_params.device = device
 
+        exp_params = self.task.get_experiment_params()
         exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir,
                                                                         model.name,
                                                                         exp_params.exp_name)
         trainer_params.training_params = exp_params.training_params
+        
+        return trainer_params
 
+    def create_trainer(self) -> Trainer:
+        trainer_params = self.create_trainer_params()
         self.trainer = trainer_params.cls(trainer_params)
     
     def train(self):
