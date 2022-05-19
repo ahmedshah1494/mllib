@@ -1,4 +1,5 @@
 import os
+import pickle
 from sched import scheduler
 from typing import Tuple
 import torch
@@ -96,10 +97,16 @@ class BaseRunner(AbstractRunner):
         trainer_params = self.create_trainer_params()
         self.trainer = trainer_params.cls(trainer_params)
     
+    def save_task(self):
+        with open(os.path.join(self.trainer.logdir, 'task.pkl'), 'wb') as f:
+            pickle.dump(self.task)
+    
     def train(self):
         self.trainer.train()
         self.trainer.logger.flush()
+        self.save_task()
     
     def test(self):
         self.trainer.test()
         self.trainer.logger.flush()
+        self.save_task()
