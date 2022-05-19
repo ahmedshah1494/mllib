@@ -12,6 +12,8 @@ from mllib.runners.configs import BaseExperimentConfig, TrainingParams
 
 from mllib.utils.metric_utils import compute_accuracy
 
+from mllib.utils.trainer_utils import _move_tensors_to_device
+
 class AbstractTrainer(Parameterized):
     def __init__(self, params) -> None:
         pass
@@ -68,6 +70,7 @@ class Trainer(AbstractTrainer):
     def __init__(self, params: TrainerParams):
         super(Trainer, self).__init__(params)
         
+        self.params = params
         self.model = params.model
         self.train_loader = params.train_loader
         self.val_loader = params.val_loader
@@ -110,14 +113,9 @@ class Trainer(AbstractTrainer):
 
     def _get_outputs_and_loss(self, x, y):
         return self.model.compute_loss(x, y)
-    
-    def _move_batch_to_device(self, batch):
-        x,y = batch        
-        x = x.to(self.device)
-        y = y.to(self.device)
-        return x,y
         
     def train_step(self, batch, batch_idx):
+        x,y = batch
         logits, loss = self._get_outputs_and_loss(x, y)
         acc, correct = compute_accuracy(logits.detach().cpu(), y.detach().cpu())
         
@@ -142,15 +140,16 @@ class Trainer(AbstractTrainer):
             test_logs[k.replace('train', 'test')] = v
         return output, test_logs
 
-    def _batch_loop(self, func, loader, epoch_idx):
+    def _batch_loop(self, func, loader, epoch_idx, logging=True):
         t = tqdm(enumerate(loader))
         t.set_description('epoch %d' % epoch_idx)
         all_outputs = []
         for i, batch in t:
-            batch = self._move_batch_to_device(batch)
+            batch = _move_tensors_to_device(batch, self.device)
             outputs, logs = func(batch, i)
             all_outputs.append(outputs)
-            self._log(logs, i + epoch_idx*len(loader))
+            if logging:
+                self._log(logs, i + epoch_idx*len(loader))
             if 'metrics' not in locals():
                 metrics = {k:0 for k in logs.keys()}
             for k,v in logs.items():
