@@ -99,7 +99,7 @@ class BaseRunner(AbstractRunner):
     
     def save_task(self):
         with open(os.path.join(self.trainer.logdir, 'task.pkl'), 'wb') as f:
-            pickle.dump(self.task)
+            pickle.dump(self.task, f)
     
     def train(self):
         self.trainer.train()
