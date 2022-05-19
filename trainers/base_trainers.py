@@ -239,7 +239,6 @@ class Trainer(AbstractTrainer):
 
         metrics = train_metrics
         metrics.update(val_metrics, post_loop_fn=self.test_epoch_end)
-        # self.logger.add_hparams(dict(vars(self.args)), {self.tracked_metric: metrics[self.tracked_metric]})
         self.model = torch.load(self.best_checkpoint)
 
     def test(self):        

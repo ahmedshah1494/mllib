@@ -1,12 +1,15 @@
 import os
 import pickle
 from sched import scheduler
+import shutil
 from typing import Tuple
 import torch
 from mllib.datasets.dataset_factory import ImageDatasetFactory
 from mllib.tasks.base_tasks import AbstractTask
 from mllib.trainers.base_trainers import Trainer
 from mllib.utils.config import ConfigBase
+
+from mllib.utils.common_utils import is_file_in_dir
 
 
 class AbstractRunner(object):
@@ -53,7 +56,14 @@ class BaseRunner(AbstractRunner):
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
         logdir = os.path.join(exp_params.logdir, model_name+exp_name)
         exp_num = len(os.listdir(logdir)) if os.path.exists(logdir) else 0
-        logdir = os.path.join(logdir, str(exp_num))
+        _logdir = os.path.join(logdir, str(exp_num-1))
+        if is_file_in_dir(_logdir, 'task.pkl'):
+            logdir = os.path.join(logdir, str(exp_num))
+        else:
+            logdir = _logdir
+        if os.path.exists(logdir):
+            shutil.rmtree(logdir)
+        print(f'writing logs to {logdir}')
         return logdir
 
     def create_optimizer(self, parameters):
@@ -110,3 +120,8 @@ class BaseRunner(AbstractRunner):
         self.trainer.test()
         self.trainer.logger.flush()
         self.save_task()
+    
+    def run(self):
+        self.create_trainer()
+        self.train()
+        self.test()
