@@ -3,14 +3,22 @@ from attrs import define
 from torch import nn
 import numpy as np
 import torch
-from param import BaseParameters
+from mllib.param import BaseParameters
 
-from utils.config import ConfigBase
+from mllib.utils.config import ConfigBase
 
 class AbstractModel(nn.Module):
-    def __init__(self) -> None:
+    class ModelParams(BaseParameters):
+        pass
+
+    def __init__(self, params:BaseParameters) -> None:
         super().__init__()
+        self.params = params
         self.name: str = ''
+
+    @classmethod
+    def get_params(cls):
+        return cls.ModelParams(cls)
 
     def compute_loss(self, x, y, return_logits=True):
         pass
@@ -36,8 +44,8 @@ class AbstractModel(nn.Module):
         return {'state_dict':sd, 'attributes':attributes}
 
 class MLP(AbstractModel):
-    # @define(slots=False)
-    class MLPParams(BaseParameters):
+    @define(slots=False)
+    class ModelParams(BaseParameters):
         input_size: Iterable = 0
         widths: List[int] = [0]
         output_size: int = 0
@@ -48,12 +56,8 @@ class MLP(AbstractModel):
         dropout_p: float = 0
         use_batch_norm: bool = False
 
-    @classmethod
-    def get_params(cls):
-        return cls.MLPParams(cls)
-
-    def __init__(self, params: MLPParams) -> None:
-        super(MLP, self).__init__()
+    def __init__(self, params: ModelParams) -> None:
+        super(MLP, self).__init__(params)
         self.name = f"MLP-{'_'.join([str(w) for w in params.widths])}"
         activation_str = params.activation().__str__()
         self.name +=f'-{activation_str[:activation_str.index("(")]}'
