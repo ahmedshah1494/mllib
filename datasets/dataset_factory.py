@@ -47,7 +47,7 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         10, 4500, 5000
                                     ),
         SupportedDatasets.CIFAR10 : DatasetConfig(
-                                        torchvision.datasets.CIFAR100,
+                                        torchvision.datasets.CIFAR10,
                                         10, 4500, 5000
                                     ),
         SupportedDatasets.CIFAR100 : DatasetConfig(
