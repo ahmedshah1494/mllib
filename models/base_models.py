@@ -16,6 +16,12 @@ class AbstractModel(nn.Module):
         self.params = params
         self.name: str = ''
 
+    def _make_name(self):
+        pass
+
+    def _make_network(self):
+        pass
+
     @classmethod
     def get_params(cls):
         return cls.ModelParams(cls)
