@@ -79,12 +79,12 @@ class BaseRunner(AbstractRunner):
         return scheduler
 
     def create_trainer_params(self) -> Trainer.TrainerParams:
-        model = self.create_model()
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        model = self.create_model().to(device)
         optimizer = self.create_optimizer(model.parameters())
         scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
-
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
         trainer_params = Trainer.get_params()
         trainer_params.model = model
