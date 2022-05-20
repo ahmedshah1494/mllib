@@ -84,7 +84,7 @@ class BaseRunner(AbstractRunner):
         scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
 
-        device = torch.device('gpu') if torch.cuda.is_available() else torch.device('cpu')
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
         trainer_params = Trainer.get_params()
         trainer_params.model = model
