@@ -26,10 +26,12 @@ class AbstractRunner(object):
         raise NotImplementedError
 
 class BaseRunner(AbstractRunner):
-    def __init__(self, task: AbstractTask) -> None:
+    def __init__(self, task: AbstractTask, ckp_dir: str=None, load_model_from_ckp: bool=False) -> None:
         super().__init__()
         self.task = task
         self.trainer: Trainer = None
+        self.ckp_dir = ckp_dir
+        self.load_model_from_ckp = load_model_from_ckp
     
     def create_datasets(self) -> Tuple[torch.utils.data.Dataset]:
         p = self.task.get_dataset_params()
@@ -52,6 +54,8 @@ class BaseRunner(AbstractRunner):
         return model
 
     def get_experiment_dir(self, logdir, model_name, exp_name):
+        if self.load_model_from_ckp:
+            return self.ckp_dir
         exp_params = self.task.get_experiment_params()
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
         logdir = os.path.join(exp_params.logdir, model_name+exp_name)
@@ -94,6 +98,7 @@ class BaseRunner(AbstractRunner):
         trainer_params.optimizer = optimizer
         trainer_params.scheduler = scheduler
         trainer_params.device = device
+        trainer_params.load_model_from_logdir = self.load_model_from_ckp
 
         exp_params = self.task.get_experiment_params()
         exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir,
