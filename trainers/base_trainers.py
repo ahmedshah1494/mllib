@@ -190,7 +190,7 @@ class Trainer(AbstractTrainer):
             for fn in os.listdir(outdir):
                 os.remove(os.path.join(outdir, fn))
         outfile = os.path.join(outdir,
-                                "metric=%.2f-epoch=%d.pt" % (metric, epoch_idx))
+                                "model_metric=%.2f-epoch=%d.pt" % (metric, epoch_idx))
         return outfile
 
     def checkpoint(self, metric, epoch_idx, comparator):
