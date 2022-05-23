@@ -98,7 +98,7 @@ class Trainer(AbstractTrainer):
             raise FileNotFoundError(f'Model file not found in {d}')
         else:
             model_file = model_file[0]
-        self.model = torch.load(os.path.join(d, model_file))
+        self.model = torch.load(os.path.join(d, model_file)).to(self.device)
 
     def track_metric(self):
         if self.tracking_mode == 'min':
