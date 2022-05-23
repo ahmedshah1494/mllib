@@ -122,6 +122,8 @@ class BaseRunner(AbstractRunner):
         self.save_task()
     
     def run(self):
-        self.create_trainer()
-        self.train()
-        self.test()
+        ntrains = self.task.get_experiment_params().num_trainings
+        for _ in ntrains:
+            self.create_trainer()
+            self.train()
+            self.test()

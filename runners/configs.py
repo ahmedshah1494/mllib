@@ -20,6 +20,7 @@ class BaseExperimentConfig:
     batch_size: int = 128
     logdir: str = 'logs/'
     exp_name: str = ''
+    num_trainings: int = 1
     training_params: TrainingParams = TrainingParams()
 
     
