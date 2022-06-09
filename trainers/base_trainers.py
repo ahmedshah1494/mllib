@@ -252,8 +252,10 @@ class Trainer(AbstractTrainer):
         metrics = train_metrics
         metrics.update(val_metrics, post_loop_fn=self.test_epoch_end)
         self.model = torch.load(self.best_checkpoint)
+        return metrics
 
     def test(self):        
         _, test_metrics = self.test_loop(post_loop_fn=self.test_epoch_end)
         print('test metrics:')
         print(test_metrics)
+        return test_metrics
