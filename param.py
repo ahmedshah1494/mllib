@@ -8,11 +8,10 @@ from copy import deepcopy
 class BaseParameters:
     cls: Type
 
-    def __init__(self, *args, **kwargs):
+    def __attrs_post_init__(self, *args, **kwargs):
         for k,v in vars(self).items():
             if isinstance(v, object):
                 self.__setattr__(k, deepcopy(v))
-        self.__attrs_init__(*args, **kwargs)
 
     def asdict(self):
         return attrs.asdict(self)
