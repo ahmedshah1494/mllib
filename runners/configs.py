@@ -1,5 +1,5 @@
 
-from attrs import define
+from attrs import define, field
 from mllib.param import BaseParameters
 from mllib.utils.config import ConfigBase
 from mllib.optimizers.configs import AbstractOptimizerConfig, AbstractSchedulerConfig
@@ -21,6 +21,6 @@ class BaseExperimentConfig:
     logdir: str = 'logs/'
     exp_name: str = ''
     num_trainings: int = 1
-    training_params: TrainingParams = TrainingParams()
+    training_params: TrainingParams = field(factory=TrainingParams)
 
     

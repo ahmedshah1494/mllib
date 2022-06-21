@@ -54,17 +54,18 @@ class BaseRunner(AbstractRunner):
         return model
 
     def get_experiment_dir(self, logdir, model_name, exp_name):
+        def is_exp_complete(i):
+            return os.path.exists(os.path.join(logdir, str(i), 'task.pkl'))
         if self.load_model_from_ckp:
             return self.ckp_dir
         exp_params = self.task.get_experiment_params()
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
         logdir = os.path.join(exp_params.logdir, model_name+exp_name)
         exp_num = len(os.listdir(logdir)) if os.path.exists(logdir) else 0
-        _logdir = os.path.join(logdir, str(exp_num-1))
-        if is_file_in_dir(_logdir, 'task.pkl'):
-            logdir = os.path.join(logdir, str(exp_num))
-        else:
-            logdir = _logdir
+        exp_num = 0
+        while is_exp_complete(exp_num):
+            exp_num += 1
+        logdir = os.path.join(logdir, str(exp_num))
         if os.path.exists(logdir):
             shutil.rmtree(logdir)
         print(f'writing logs to {logdir}')
@@ -113,8 +114,7 @@ class BaseRunner(AbstractRunner):
         self.trainer = trainer_params.cls(trainer_params)
     
     def save_task(self):
-        with open(os.path.join(self.trainer.logdir, 'task.pkl'), 'wb') as f:
-            pickle.dump(self.task, f)
+        self.task.save_task(os.path.join(self.trainer.logdir, 'task.pkl'))
     
     def train(self):
         self.trainer.train()
