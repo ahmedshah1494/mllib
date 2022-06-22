@@ -55,7 +55,6 @@ class Trainer(AbstractTrainer):
     @define(slots=False)
     class TrainerParams(BaseParameters):
         model: AbstractModel = None
-        load_model_from_logdir: bool = False
         train_loader: torch.utils.data.DataLoader = None
         val_loader: torch.utils.data.DataLoader = None
         test_loader: torch.utils.data.DataLoader = None
@@ -70,7 +69,6 @@ class Trainer(AbstractTrainer):
 
     def __init__(self, params: TrainerParams):
         super(Trainer, self).__init__(params)
-        
         self.params = params
         self.model = params.model
         self.train_loader = params.train_loader
@@ -85,20 +83,9 @@ class Trainer(AbstractTrainer):
         self.early_stop_patience = params.training_params.early_stop_patience
         self.tracked_metric = params.training_params.tracked_metric
         self.tracking_mode = params.training_params.tracking_mode
-        if params.load_model_from_logdir:
-            self.load_model_from_logdir()
         self.debug = params.training_params.debug
 
         self.track_metric()
-
-    def load_model_from_logdir(self):
-        d = os.path.join(self.logdir, 'checkpoints')
-        model_file = [f for f in os.listdir(d) if f.startswith('model') and f.endswith('.pt')]
-        if len(model_file) == 0:
-            raise FileNotFoundError(f'Model file not found in {d}')
-        else:
-            model_file = model_file[0]
-        self.model = torch.load(os.path.join(d, model_file)).to(self.device)
 
     def track_metric(self):
         if self.tracking_mode == 'min':

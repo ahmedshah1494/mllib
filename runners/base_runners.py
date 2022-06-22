@@ -26,11 +26,11 @@ class AbstractRunner(object):
         raise NotImplementedError
 
 class BaseRunner(AbstractRunner):
-    def __init__(self, task: AbstractTask, ckp_dir: str=None, load_model_from_ckp: bool=False) -> None:
+    def __init__(self, task: AbstractTask, ckp_pth: str=None, load_model_from_ckp: bool=False) -> None:
         super().__init__()
         self.task = task
         self.trainer: Trainer = None
-        self.ckp_dir = ckp_dir
+        self.ckp_pth = ckp_pth
         self.load_model_from_ckp = load_model_from_ckp
     
     def create_datasets(self) -> Tuple[torch.utils.data.Dataset]:
@@ -47,17 +47,24 @@ class BaseRunner(AbstractRunner):
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=p.batch_size, shuffle=False)
 
         return train_loader, val_loader, test_loader
+
+    def load_model(self):
+        model = torch.load(self.ckp_pth)
+        return model
     
     def create_model(self) -> torch.nn.Module:
-        p = self.task.get_model_params()
-        model = p.cls(p)
+        if self.load_model_from_ckp:
+            model = self.load_model()
+        else:
+            p = self.task.get_model_params()
+            model = p.cls(p)
         return model
 
     def get_experiment_dir(self, logdir, model_name, exp_name):
         def is_exp_complete(i):
             return os.path.exists(os.path.join(logdir, str(i), 'task.pkl'))
-        if self.load_model_from_ckp:
-            return self.ckp_dir
+        # if self.load_model_from_ckp:
+        #     return self.ckp_dir
         exp_params = self.task.get_experiment_params()
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
         logdir = os.path.join(exp_params.logdir, model_name+exp_name)
@@ -99,7 +106,6 @@ class BaseRunner(AbstractRunner):
         trainer_params.optimizer = optimizer
         trainer_params.scheduler = scheduler
         trainer_params.device = device
-        trainer_params.load_model_from_logdir = self.load_model_from_ckp
 
         exp_params = self.task.get_experiment_params()
         exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir,
