@@ -35,17 +35,18 @@ def get_randomly_targeted_torchattack_cls(atkcls: torchattacks.attack.Attack):
         __name__ = f'RandomlyTargeted{atkcls.__name__}'
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
-            self.num_classes = None
-            self.set_mode_targeted_by_function(self.random_target_function)
-        
-        def random_target_function(self, x, y):
-            return (y + torch.randint_like(y, self.num_classes - 1)) % self.num_classes
+            # self.num_classes = None
+            # self.set_mode_targeted_by_function(self.random_target_function)
+            self.set_mode_targeted_random()
+            print('target_map_function:', self._target_map_function)
+        # def random_target_function(self, x, y):
+        #     return (y + torch.randint_like(y, self.num_classes - 1)) % self.num_classes
         
         def __call__(self, *input, **kwds):
-            if self.num_classes is None:
-                x = input[0].to(self.device)
-                out = self.model(x)
-                self.num_classes = out.shape[-1]
+        #     if self.num_classes is None:
+        #         x = input[0].to(self.device)
+        #         out = self.model(x)
+        #         self.num_classes = out.shape[-1]
             return super().__call__(*input, **kwds)
     
     return RandomlyTargetedAttack
