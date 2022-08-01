@@ -40,8 +40,11 @@ def get_randomly_targeted_torchattack_cls(atkcls: torchattacks.attack.Attack):
         @torch.no_grad()
         def _get_random_target_label(self, images, labels=None):
             seed = (images.detach().cpu().numpy().mean() * 1e5).astype(int)
-            torch.random.manual_seed(seed)
-            return super()._get_random_target_label(images, labels)
+            init_seed = torch.initial_seed()
+            torch.manual_seed(seed)
+            tgt = super()._get_random_target_label(images, labels)
+            torch.manual_seed(init_seed)
+            return tgt
         
         def __call__(self, *input, **kwds):
             return super().__call__(*input, **kwds)
