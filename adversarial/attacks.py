@@ -26,6 +26,7 @@ class SupportedBackend(Enum):
 @define(slots=False)
 class AbstractAttackConfig:
     _cls = None
+    model = None
 
     def asdict(self):
         return attrs.asdict(self, filter=lambda attr, value: (not attr.name.startswith('_')))
