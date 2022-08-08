@@ -97,7 +97,7 @@ class FoolboxAttackWrapper:
     def __init__(self, model, **kwargs) -> None:
         self.model = foolbox.PyTorchModel(model, bounds=(0, 1))
         print(kwargs)
-        self.run_kwargs = kwargs.pop('run_params')
+        self.run_kwargs = kwargs.pop('run_params', {})
         self.attack = self.atkcls(**kwargs)
     
     def __call__(self, x, y):
@@ -124,7 +124,7 @@ class FoolboxHopSkipJumpInfInitParams(AbstractAttackConfig):
     run_params: AbstractAttackConfig = FoolboxCommonRunParams()
 
 class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
-    atkcls = foolbox.attacks.boundary_attack
+    atkcls = foolbox.attacks.BoundaryAttack
 @define(slots=False)
 class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     _cls = FoolboxBoundaryAttackWrapper
@@ -134,7 +134,7 @@ class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     source_step_convergance: float = 1e-7
     step_adaptation: float = 1.5
     update_stats_every_k: int = 10
-    run_params: AbstractAttackConfig = FoolboxCommonRunParams()
+    run_params = {}
 
 class AttackParamFactory:
     torchattack_params = {
