@@ -101,7 +101,8 @@ class FoolboxAttackWrapper:
         self.attack = self.atkcls(**kwargs)
     
     def __call__(self, x, y):
-        return self.attack(self.model, x, y, **(self.run_kwargs))
+        raw_advs, clipped_advs, success = self.attack(self.model, x, y, **(self.run_kwargs))
+        return clipped_advs[0]
 
 class FoolboxHopSkipJumpInfWrapper(FoolboxAttackWrapper):
     atkcls = foolbox.attacks.HopSkipJumpAttack
@@ -128,7 +129,7 @@ class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
 @define(slots=False)
 class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     _cls = FoolboxBoundaryAttackWrapper
-    steps: int = 25000
+    steps: int = 10
     spherical_step: float = 1e-2
     source_step: float = 1e-2
     source_step_convergance: float = 1e-7
