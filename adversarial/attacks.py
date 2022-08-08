@@ -18,6 +18,7 @@ class SupportedAttacks(Enum):
     SQUARELINF = auto()
     RANDOMLY_TARGETED_SQUARELINF = auto()
     HOPSKIPJUMPLINF = auto()
+    BOUNDARY = auto()
 
 class SupportedBackend(Enum):
     TORCHATTACKS = auto()
@@ -122,6 +123,25 @@ class FoolboxHopSkipJumpInfInitParams(AbstractAttackConfig):
     constraint: Union[Literal["linf"], Literal["l2"]] = "l2"
     run_params: AbstractAttackConfig = FoolboxCommonRunParams()
 
+class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
+    atkcls = foolbox.attacks.boundary_attack
+
+@define(slots=False)
+class FoolboxBoundaryAttackRunParams(AbstractAttackConfig):
+    'criterion': foolbox.criteria.Misclassification()
+    
+
+@define(slots=False)
+class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
+    _cls = FoolboxBoundaryAttackWrapper
+    steps: int = 25000
+    spherical_step: float = 1e-2
+    source_step: float = 1e-2
+    source_step_convergance: float = 1e-7
+    step_adaptation: float = 1.5
+    update_stats_every_k: int = 10
+    run_params: AbstractAttackConfig = FoolboxBoundaryAttackRunParams()
+
 class AttackParamFactory:
     torchattack_params = {
         SupportedAttacks.PGDLINF: TorchAttackPGDInfParams,
@@ -130,7 +150,8 @@ class AttackParamFactory:
         SupportedAttacks.RANDOMLY_TARGETED_SQUARELINF: TorchAttackRandomlyTargetedSquareInfParams
     }
     foolbox_params = {
-        SupportedAttacks.HOPSKIPJUMPLINF: FoolboxHopSkipJumpInfInitParams
+        SupportedAttacks.HOPSKIPJUMPLINF: FoolboxHopSkipJumpInfInitParams,
+        SupportedAttacks.BOUNDARY: FoolboxBoundaryAttackWrapper,
     }
     backend_params = {
         SupportedBackend.TORCHATTACKS: torchattack_params,
