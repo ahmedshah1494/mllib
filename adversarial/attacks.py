@@ -134,7 +134,7 @@ class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     source_step_convergance: float = 1e-7
     step_adaptation: float = 1.5
     update_stats_every_k: int = 10
-    run_params = {}
+    run_params: FoolboxCommonRunParams = FoolboxCommonRunParams()
 
 class AttackParamFactory:
     torchattack_params = {
