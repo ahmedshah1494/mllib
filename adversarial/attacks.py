@@ -125,12 +125,6 @@ class FoolboxHopSkipJumpInfInitParams(AbstractAttackConfig):
 
 class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
     atkcls = foolbox.attacks.boundary_attack
-
-@define(slots=False)
-class FoolboxBoundaryAttackRunParams(AbstractAttackConfig):
-    criterion = foolbox.criteria.Misclassification()
-    
-
 @define(slots=False)
 class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     _cls = FoolboxBoundaryAttackWrapper
@@ -140,7 +134,7 @@ class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     source_step_convergance: float = 1e-7
     step_adaptation: float = 1.5
     update_stats_every_k: int = 10
-    run_params: AbstractAttackConfig = FoolboxBoundaryAttackRunParams()
+    run_params: AbstractAttackConfig = FoolboxCommonRunParams()
 
 class AttackParamFactory:
     torchattack_params = {
@@ -151,7 +145,7 @@ class AttackParamFactory:
     }
     foolbox_params = {
         SupportedAttacks.HOPSKIPJUMPLINF: FoolboxHopSkipJumpInfInitParams,
-        SupportedAttacks.BOUNDARY: FoolboxBoundaryAttackWrapper,
+        SupportedAttacks.BOUNDARY: FoolboxBoundaryAttackInitParams,
     }
     backend_params = {
         SupportedBackend.TORCHATTACKS: torchattack_params,
