@@ -2,7 +2,7 @@ from enum import Enum, auto
 from time import time
 from typing import List, Literal, Type, Union
 
-from attrs import define
+from attrs import define, field
 import attrs
 from mllib.param import BaseParameters
 import torch
@@ -122,7 +122,7 @@ class FoolboxHopSkipJumpInfInitParams(AbstractAttackConfig):
     gamma: float = 1.0
     tensorboard: Union[Literal[False], None, str] = False
     constraint: Union[Literal["linf"], Literal["l2"]] = "l2"
-    run_params: AbstractAttackConfig = FoolboxCommonRunParams()
+    run_params: FoolboxCommonRunParams = field(factory=FoolboxCommonRunParams)
 
 class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
     atkcls = foolbox.attacks.BoundaryAttack
@@ -135,7 +135,7 @@ class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     source_step_convergance: float = 1e-7
     step_adaptation: float = 1.5
     update_stats_every_k: int = 10
-    run_params: FoolboxCommonRunParams = FoolboxCommonRunParams()
+    run_params: FoolboxCommonRunParams = field(factory=FoolboxCommonRunParams)
 
 class AttackParamFactory:
     torchattack_params = {
