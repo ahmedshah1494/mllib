@@ -128,7 +128,7 @@ class FoolboxBoundaryAttackWrapper(FoolboxAttackWrapper):
 
 @define(slots=False)
 class FoolboxBoundaryAttackRunParams(AbstractAttackConfig):
-    'criterion': foolbox.criteria.Misclassification()
+    criterion = foolbox.criteria.Misclassification()
     
 
 @define(slots=False)
