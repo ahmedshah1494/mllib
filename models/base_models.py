@@ -126,7 +126,7 @@ class MLP(AbstractModel):
         self.mlp = nn.ModuleList(layers)
     
     def forward(self, x):
-        x = x.view(x.shape[0], -1)
+        x = x.reshape(x.shape[0], -1)
         for i, l in enumerate(self.mlp):
             if (i == 0) or (i == len(self.mlp)-1) or (not self.add_shortcut_connections):
                 x = l(x)
