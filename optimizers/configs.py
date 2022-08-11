@@ -40,3 +40,10 @@ class ReduceLROnPlateauConfig(AbstractSchedulerConfig):
     patience: int = 5
     mode: str = 'min'
     factor: float = 0.5
+
+@define(slots=False)
+class CosineAnnealingWarmRestartsConfig(AbstractSchedulerConfig):
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+    T_0: int = 100
+    T_mult: int = 1
+    eta_min: float = 0
