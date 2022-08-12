@@ -60,7 +60,6 @@ class LinearLRConfig(AbstractSchedulerConfig):
 class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
     def __init__(self, optimizer, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = -1) -> None:
         schedulers = [p._cls(optimizer, **(p.asdict())) for p in schedulers]
-        print(schedulers, milestones)
         super().__init__(optimizer, schedulers, milestones, last_epoch)
 
 @define(slots=False)
