@@ -31,8 +31,8 @@ class SGDOptimizerConfig(AbstractOptimizerConfig):
 class AbstractSchedulerConfig:
     _cls: Type[torch.optim.lr_scheduler._LRScheduler] = None
     
-    def asdict(self):
-        return attrs.asdict(self, filter=lambda attr, value: (not attr.name.startswith('_')))
+    def asdict(self, **kwargs):
+        return attrs.asdict(self, filter=lambda attr, value: (not attr.name.startswith('_')), **kwargs)
 
 @define(slots=False)
 class ReduceLROnPlateauConfig(AbstractSchedulerConfig):
@@ -58,13 +58,17 @@ class LinearLRConfig(AbstractSchedulerConfig):
     verbose:bool = False
 
 class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
-    def __init__(self, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = ...) -> None:
-        schedulers = [p.cls(**(p.asdict())) for p in schedulers]
-        super().__init__(schedulers, milestones, last_epoch)
+    def __init__(self, optimizer, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = -1) -> None:
+        schedulers = [p._cls(optimizer, **(p.asdict())) for p in schedulers]
+        print(schedulers, milestones)
+        super().__init__(optimizer, schedulers, milestones, last_epoch)
 
 @define(slots=False)
 class SequentialLRConfig(AbstractSchedulerConfig):
     _cls: Type[torch.optim.lr_scheduler._LRScheduler] = _SequentialLRWrapper
     schedulers: List[AbstractSchedulerConfig] = field(factory=list)
     milestones: List[int] = field(factory=list)
+
+    def asdict(self, **kwargs):
+        return super().asdict(recurse=False, **kwargs)
 
