@@ -1,6 +1,6 @@
-from typing import NamedTuple, Type
+from typing import NamedTuple, Type, List
 import attrs
-from attrs import define
+from attrs import define, field
 import torch
 from mllib.param import BaseParameters, Parameterized
 
@@ -47,3 +47,14 @@ class CosineAnnealingWarmRestartsConfig(AbstractSchedulerConfig):
     T_0: int = 100
     T_mult: int = 1
     eta_min: float = 0
+
+class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
+    def __init__(self, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = ...) -> None:
+        schedulers = [p.cls(**(p.asdict())) for p in schedulers]
+        super().__init__(schedulers, milestones, last_epoch)
+
+@define(slots=False)
+class SequentialLRConfig(AbstractSchedulerConfig):
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = _SequentialLRWrapper
+    schedulers: List[AbstractSchedulerConfig] = field(factory=list)
+    milestones: List[int] = field(factory=list)
