@@ -47,6 +47,8 @@ class CosineAnnealingWarmRestartsConfig(AbstractSchedulerConfig):
     T_0: int = 100
     T_mult: int = 1
     eta_min: float = 0
+    last_epoch: int = -1
+    verbose: bool = False
 
 @define(slots=False)
 class LinearLRConfig(AbstractSchedulerConfig):
