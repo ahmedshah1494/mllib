@@ -48,6 +48,15 @@ class CosineAnnealingWarmRestartsConfig(AbstractSchedulerConfig):
     T_mult: int = 1
     eta_min: float = 0
 
+@define(slots=False)
+class LinearLRConfig(AbstractSchedulerConfig):
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = torch.optim.lr_scheduler.LinearLR
+    start_factor: float = 1/3
+    end_factor: float = 1.
+    total_iters: int = 5
+    last_epoch: int = -1
+    verbose:bool = False
+
 class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
     def __init__(self, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = ...) -> None:
         schedulers = [p.cls(**(p.asdict())) for p in schedulers]
@@ -58,3 +67,4 @@ class SequentialLRConfig(AbstractSchedulerConfig):
     _cls: Type[torch.optim.lr_scheduler._LRScheduler] = _SequentialLRWrapper
     schedulers: List[AbstractSchedulerConfig] = field(factory=list)
     milestones: List[int] = field(factory=list)
+
