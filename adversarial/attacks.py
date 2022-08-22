@@ -89,7 +89,6 @@ class TorchAttackSquareInfParams(AbstractAttackConfig):
     n_queries: int = 1000
     seed: int = time()
     n_restarts: int = 1
-    eot_iter: int = 1
 
 @define(slots=False)
 class TorchAttackRandomlyTargetedSquareInfParams(TorchAttackSquareInfParams):
