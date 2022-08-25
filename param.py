@@ -8,8 +8,8 @@ from copy import deepcopy
 class BaseParameters:
     cls: Type
 
-    def asdict(self):
-        return attrs.asdict(self)
+    def asdict(self, **kwargs):
+        return attrs.asdict(self, **kwargs)
 
 class Parameterized:
     @classmethod
