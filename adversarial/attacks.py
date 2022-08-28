@@ -60,7 +60,6 @@ class TorchAttackPGDInfParams(AbstractAttackConfig):
     nsteps: int = 10
     step_size: float = eps / (nsteps/2)
     random_start: bool = True
-    eot_iter: int = 1
 
     def asdict(self):
         d = super().asdict()
@@ -75,6 +74,7 @@ class TorchAttackAPGDInfParams(AbstractAttackConfig):
     nsteps: int = 10
     seed: int = time()
     n_restarts: int = 1
+    eot_iter: int = 1
 
     def asdict(self):
         d = super().asdict()
