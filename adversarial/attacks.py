@@ -75,7 +75,6 @@ class TorchAttackAPGDInfParams(AbstractAttackConfig):
     nsteps: int = 10
     seed: int = time()
     n_restarts: int = 1
-    eot_iter: int = 1
 
     def asdict(self):
         d = super().asdict()
