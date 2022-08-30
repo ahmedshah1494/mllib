@@ -19,6 +19,7 @@ class SupportedAttacks(Enum):
     RANDOMLY_TARGETED_SQUARELINF = auto()
     HOPSKIPJUMPLINF = auto()
     BOUNDARY = auto()
+    CWL2 = auto()
 
 class SupportedBackend(Enum):
     TORCHATTACKS = auto()
@@ -138,6 +139,19 @@ class FoolboxBoundaryAttackInitParams(AbstractAttackConfig):
     update_stats_every_k: int = 10
     run_params: FoolboxCommonRunParams = field(factory=FoolboxCommonRunParams)
 
+class FoolboxCWL2AttackWrapper(FoolboxAttackWrapper):
+    atkcls = foolbox.attacks.L2CarliniWagnerAttack
+@define(slots=False)
+class FoolboxCWL2AttackInitParams(AbstractAttackConfig):
+    _cls = FoolboxCWL2AttackWrapper
+    binary_search_steps: int = 9
+    steps: int = 10000
+    stepsize: float = 1e-2
+    confidence: float = 0
+    initial_const: float = 1e-3
+    abort_early: bool = True
+    run_params: FoolboxCommonRunParams = field(factory=FoolboxCommonRunParams)
+
 class AttackParamFactory:
     torchattack_params = {
         SupportedAttacks.PGDLINF: TorchAttackPGDInfParams,
@@ -148,6 +162,7 @@ class AttackParamFactory:
     foolbox_params = {
         SupportedAttacks.HOPSKIPJUMPLINF: FoolboxHopSkipJumpInfInitParams,
         SupportedAttacks.BOUNDARY: FoolboxBoundaryAttackInitParams,
+        SupportedAttacks.CWL2: FoolboxCWL2AttackInitParams,
     }
     backend_params = {
         SupportedBackend.TORCHATTACKS: torchattack_params,
