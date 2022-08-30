@@ -46,7 +46,7 @@ if __name__ == "__main__":
         dataset = test_dataset
     if args.split == 'train':
         dataset = train_dataset
-    for i in range(len(dataset)):
+    for i in trange(len(dataset)):
 
         # only certify every args.skip examples, and stop after args.max examples
         if i % args.skip != 0:
