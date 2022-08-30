@@ -1,5 +1,6 @@
 # evaluate a smoothed classifier on a dataset
 import argparse
+from importlib import import_module
 from mllib.adversarial.randomized_smoothing.core import Smooth
 from time import time
 import torch
@@ -9,11 +10,20 @@ from tqdm import trange
 
 from mllib.datasets.dataset_factory import ImageDatasetFactory, SupportedDatasets
 
+def get_task_class_from_str(s):
+    split = s.split('.')
+    modstr = '.'.join(split[:-1])
+    cls_name =  split[-1]
+    mod = import_module(modstr)
+    task_cls = getattr(mod, cls_name)
+    return task_cls
+
 parser = argparse.ArgumentParser(description='Certify many examples')
 parser.add_argument("dataset", choices=SupportedDatasets._member_names_, help="which dataset")
 parser.add_argument("base_classifier", type=str, help="path to saved pytorch model of base classifier")
 parser.add_argument("sigma", type=float, help="noise hyperparameter")
 parser.add_argument("outfile", type=str, help="output file")
+parser.add_argument("--task", type=str, help="task")
 parser.add_argument("--batch", type=int, default=1000, help="batch size")
 parser.add_argument("--skip", type=int, default=1, help="how many examples to skip")
 parser.add_argument("--max", type=int, default=-1, help="stop after this many examples")
@@ -26,6 +36,11 @@ args = parser.parse_args()
 if __name__ == "__main__":
     # load the base classifier
     base_classifier = torch.load(args.base_classifier)
+    if args.task is not None:
+        task = get_task_class_from_str(args.task)
+        modelp = task.get_model_params()
+        model = modelp.cls(modelp)
+
 
     idfp = ImageDatasetFactory.get_params()
     idfp.custom_transforms = [torchvision.transforms.ToTensor()]*2
@@ -64,7 +79,8 @@ if __name__ == "__main__":
         correct = int(prediction == label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        print("{}\t{}\t{}\t{:.3}\t{}\t{}".format(
-            i, label, prediction, radius, correct, time_elapsed), file=f, flush=True)
+        f.write("{}\t{}\t{}\t{:.3}\t{}\t{}".format(
+            i, label, prediction, radius, correct, time_elapsed))
+        f.flush()
 
     f.close()
