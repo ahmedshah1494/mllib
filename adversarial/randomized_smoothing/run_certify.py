@@ -79,7 +79,7 @@ if __name__ == "__main__":
         correct = int(prediction == label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        f.write("{}\t{}\t{}\t{:.3}\t{}\t{}".format(
+        f.write("{}\t{}\t{}\t{:.3}\t{}\t{}\n".format(
             i, label, prediction, radius, correct, time_elapsed))
         f.flush()
 
