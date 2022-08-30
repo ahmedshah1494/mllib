@@ -1,6 +1,6 @@
 # evaluate a smoothed classifier on a dataset
 import argparse
-from core import Smooth
+from mllib.adversarial.randomized_smoothing.core import Smooth
 from time import time
 import torch
 import torchvision
