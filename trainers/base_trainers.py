@@ -254,3 +254,18 @@ class Trainer(AbstractTrainer):
         print('test metrics:')
         print(test_metrics)
         return test_metrics
+
+class MixedPrecisionTrainerMixin(object):
+    def __init__(self) -> None:
+        self.scaler = torch.cuda.amp.grad_scaler.GradScaler()
+
+    def _optimization_wrapper(self, func):
+        def wrapper(*args, **kwargs):
+            self.optimizer.zero_grad()
+            with torch.autocast():
+                output, logs = func(*args, **kwargs)
+            self.scaler.scale(output['loss']).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            return output, logs
+        return wrapper   
