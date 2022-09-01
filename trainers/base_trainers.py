@@ -263,7 +263,7 @@ class MixedPrecisionTrainerMixin(object):
     def _optimization_wrapper(self, func):
         def wrapper(*args, **kwargs):
             self.optimizer.zero_grad()
-            with torch.autocast():
+            with torch.cuda.amp.autocast():
                 output, logs = func(*args, **kwargs)
             self.scaler.scale(output['loss']).backward()
             self.scaler.step(self.optimizer)
