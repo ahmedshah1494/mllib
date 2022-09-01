@@ -11,6 +11,7 @@ class TrainingParams:
     early_stop_patience: int = 5
     tracked_metric: str = 'train_loss'
     tracking_mode: str = 'min'
+    schduler_step_after_epoch: bool = True
     debug:bool = False
 
 @define(slots=False)

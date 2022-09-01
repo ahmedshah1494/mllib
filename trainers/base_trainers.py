@@ -107,6 +107,8 @@ class Trainer(AbstractTrainer):
             output, logs = func(*args, **kwargs)
             output['loss'].backward()
             self.optimizer.step()
+            if self.params.training_params.schduler_step_after_epoch:
+                self._scheduler_step(logs)
             return output, logs
         return wrapper    
 
@@ -206,16 +208,20 @@ class Trainer(AbstractTrainer):
     def check_early_stop(self):
         return self.epochs_since_best > self.early_stop_patience
     
+    def _scheduler_step(self, metrics):
+        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            self.scheduler.step(metrics[self.tracked_metric])
+        else:
+            self.scheduler.step()
+
     def epoch_end(self, epoch_idx, train_outputs, val_outputs, train_metrics, val_metrics):
         metrics = train_metrics
         metrics.update(val_metrics)
 
         self.checkpoint(metrics[self.tracked_metric], epoch_idx, self.metric_comparator)
         
-        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-            self.scheduler.step(metrics[self.tracked_metric])
-        else:
-            self.scheduler.step()
+        if self.params.training_params.schduler_step_after_epoch:
+            self._scheduler_step(metrics)
     
     def train_epoch_end(self, outputs, metrics, epoch_idx):
         return outputs, metrics
