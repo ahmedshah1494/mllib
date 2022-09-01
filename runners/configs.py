@@ -1,4 +1,5 @@
 
+from typing import Type
 from attrs import define, field
 from mllib.param import BaseParameters
 from mllib.utils.config import ConfigBase
@@ -16,6 +17,7 @@ class TrainingParams:
 
 @define(slots=False)
 class BaseExperimentConfig:
+    trainer_cls: Type = None
     optimizer_config: AbstractOptimizerConfig = None
     scheduler_config: AbstractSchedulerConfig = None
     batch_size: int = 128
