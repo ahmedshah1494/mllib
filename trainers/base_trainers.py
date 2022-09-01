@@ -60,9 +60,9 @@ class Trainer(AbstractTrainer):
     def get_params(cls):
         return cls.TrainerParams(cls)
 
-    def __init__(self, model: AbstractModel, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
+    def __init__(self, params: TrainerParams, model: AbstractModel, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
                     test_loader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler._LRScheduler,
-                    params: TrainerParams, device: torch.device = torch.device('cpu')):
+                    device: torch.device = torch.device('cpu')):
         super(Trainer, self).__init__(params)
         self.params = params
         self.model = model
@@ -78,8 +78,8 @@ class Trainer(AbstractTrainer):
         self.early_stop_patience = params.training_params.early_stop_patience
         self.tracked_metric = params.training_params.tracked_metric
         self.tracking_mode = params.training_params.tracking_mode
-        self.schduler_step_after_epoch = self.params.training_params.schduler_step_after_epoch
-        self.schduler_step_after_epoch = self.params.training_params.schduler_step_after_epoch
+        print(params)
+        self.scheduler_step_after_epoch = params.training_params.scheduler_step_after_epoch
         self.debug = params.training_params.debug
 
         self.track_metric()
@@ -104,7 +104,7 @@ class Trainer(AbstractTrainer):
             output, logs = func(*args, **kwargs)
             output['loss'].backward()
             self.optimizer.step()
-            if not self.schduler_step_after_epoch:
+            if not self.scheduler_step_after_epoch:
                 self._scheduler_step(logs)
             return output, logs
         return wrapper    
@@ -217,7 +217,7 @@ class Trainer(AbstractTrainer):
 
         self.checkpoint(metrics[self.tracked_metric], epoch_idx, self.metric_comparator)
         
-        if self.schduler_step_after_epoch:
+        if self.scheduler_step_after_epoch:
             self._scheduler_step(metrics)
     
     def train_epoch_end(self, outputs, metrics, epoch_idx):

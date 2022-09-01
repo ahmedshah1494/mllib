@@ -94,8 +94,7 @@ class BaseRunner(AbstractRunner):
     def create_trainer_params(self) -> Trainer.TrainerParams:
         exp_params = self.task.get_experiment_params()
         trainer_params = exp_params.trainer_params
-        exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir, exp_params.exp_name)
-        trainer_params.training_params = exp_params.training_params        
+        trainer_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir, exp_params.exp_name)
         return trainer_params
 
     def create_trainer(self) -> Trainer:
@@ -106,7 +105,7 @@ class BaseRunner(AbstractRunner):
         scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
 
-        self.trainer = trainer_params.cls(model, train_loader, val_loader, test_loader, optimizer, scheduler, trainer_params)
+        self.trainer = trainer_params.cls(trainer_params, model, train_loader, val_loader, test_loader, optimizer, scheduler, device=device)
     
     def save_task(self):
         self.task.save_task(os.path.join(self.trainer.logdir, 'task.pkl'))
