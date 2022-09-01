@@ -1,4 +1,4 @@
-from typing import NamedTuple, Type, List
+from typing import Callable, NamedTuple, Type, List
 import attrs
 from attrs import define, field
 import torch
@@ -58,6 +58,23 @@ class LinearLRConfig(AbstractSchedulerConfig):
     total_iters: int = 5
     last_epoch: int = -1
     verbose:bool = False
+
+@define(slots=False)
+class CyclicLRConfig(AbstractSchedulerConfig):
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = torch.optim.lr_scheduler.CyclicLR
+    base_lr: float = None
+    max_lr: float = None
+    step_size_up: int = 2000
+    step_size_down: int = None
+    mode: str = 'triangular'
+    gamma: float = 1.0
+    scale_fn: Callable = None
+    scale_mode: str = 'cycle'
+    cycle_momentum: bool = True
+    base_momentum: float = 0.8
+    max_momentum: float = 0.9
+    last_epoch: int = - 1
+    verbose: bool = False
 
 class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
     def __init__(self, optimizer, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = -1) -> None:
