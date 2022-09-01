@@ -257,6 +257,7 @@ class Trainer(AbstractTrainer):
 
 class MixedPrecisionTrainerMixin(object):
     def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.scaler = torch.cuda.amp.grad_scaler.GradScaler()
 
     def _optimization_wrapper(self, func):
