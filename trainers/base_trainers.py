@@ -84,6 +84,7 @@ class Trainer(AbstractTrainer):
         self.tracked_metric = params.training_params.tracked_metric
         self.tracking_mode = params.training_params.tracking_mode
         self.schduler_step_after_epoch = self.params.training_params.schduler_step_after_epoch
+        self.schduler_step_after_epoch = self.params.training_params.schduler_step_after_epoch
         self.debug = params.training_params.debug
 
         self.track_metric()
