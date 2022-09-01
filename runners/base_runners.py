@@ -60,14 +60,15 @@ class BaseRunner(AbstractRunner):
             model = p.cls(p)
         return model
 
-    def get_experiment_dir(self, logdir, model_name, exp_name):
+    def get_experiment_dir(self, logdir, exp_name):
         def is_exp_complete(i):
             return os.path.exists(os.path.join(logdir, str(i), 'task.pkl'))
         # if self.load_model_from_ckp:
         #     return self.ckp_dir
         exp_params = self.task.get_experiment_params()
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
-        logdir = os.path.join(exp_params.logdir, model_name+exp_name)
+        task_name = type(self.task).__name__
+        logdir = os.path.join(exp_params.logdir, task_name+exp_name)
         exp_num = len(os.listdir(logdir)) if os.path.exists(logdir) else 0
         exp_num = 0
         while is_exp_complete(exp_num):
@@ -91,33 +92,21 @@ class BaseRunner(AbstractRunner):
         return scheduler
 
     def create_trainer_params(self) -> Trainer.TrainerParams:
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        exp_params = self.task.get_experiment_params()
+        trainer_params = exp_params.trainer_params
+        exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir, exp_params.exp_name)
+        trainer_params.training_params = exp_params.training_params        
+        return trainer_params
 
+    def create_trainer(self) -> Trainer:
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        trainer_params = self.create_trainer_params()
         model = self.create_model().to(device)
         optimizer = self.create_optimizer(model.parameters())
         scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
 
-        trainer_params = Trainer.get_params()
-        trainer_params.model = model
-        trainer_params.train_loader = train_loader
-        trainer_params.val_loader = val_loader
-        trainer_params.test_loader = test_loader
-        trainer_params.optimizer = optimizer
-        trainer_params.scheduler = scheduler
-        trainer_params.device = device
-
-        exp_params = self.task.get_experiment_params()
-        exp_params.training_params.logdir = self.get_experiment_dir(exp_params.logdir,
-                                                                        model.name,
-                                                                        exp_params.exp_name)
-        trainer_params.training_params = exp_params.training_params
-        
-        return trainer_params
-
-    def create_trainer(self) -> Trainer:
-        trainer_params = self.create_trainer_params()
-        self.trainer = trainer_params.cls(trainer_params)
+        self.trainer = trainer_params.cls(model, train_loader, val_loader, test_loader, optimizer, scheduler, trainer_params)
     
     def save_task(self):
         self.task.save_task(os.path.join(self.trainer.logdir, 'task.pkl'))

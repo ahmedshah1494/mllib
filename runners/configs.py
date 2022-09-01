@@ -17,13 +17,11 @@ class TrainingParams:
 
 @define(slots=False)
 class BaseExperimentConfig:
-    trainer_cls: Type = None
+    trainer_params: BaseParameters = None
     optimizer_config: AbstractOptimizerConfig = None
     scheduler_config: AbstractSchedulerConfig = None
     batch_size: int = 128
     logdir: str = 'logs/'
     exp_name: str = ''
     num_trainings: int = 1
-    training_params: TrainingParams = field(factory=TrainingParams)
-
     

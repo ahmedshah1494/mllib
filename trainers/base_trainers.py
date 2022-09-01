@@ -54,30 +54,25 @@ class AbstractTrainer(Parameterized):
 class Trainer(AbstractTrainer):
     @define(slots=False)
     class TrainerParams(BaseParameters):
-        model: AbstractModel = None
-        train_loader: torch.utils.data.DataLoader = None
-        val_loader: torch.utils.data.DataLoader = None
-        test_loader: torch.utils.data.DataLoader = None
-        optimizer: torch.optim.Optimizer = None
-        scheduler: torch.optim.lr_scheduler._LRScheduler = None
-        device: torch.device = torch.device('cpu')
         training_params: TrainingParams = None        
 
     @classmethod
     def get_params(cls):
         return cls.TrainerParams(cls)
 
-    def __init__(self, params: TrainerParams):
+    def __init__(self, model: AbstractModel, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
+                    test_loader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler._LRScheduler,
+                    params: TrainerParams, device: torch.device = torch.device('cpu')):
         super(Trainer, self).__init__(params)
         self.params = params
-        self.model = params.model
-        self.train_loader = params.train_loader
-        self.val_loader = params.val_loader
-        self.test_loader = params.test_loader
+        self.model = model
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
         self.nepochs = params.training_params.nepochs
-        self.optimizer = params.optimizer
-        self.scheduler = params.scheduler
-        self.device = params.device
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.device = device
         self.logdir = params.training_params.logdir
         self.logger = SummaryWriter(log_dir=params.training_params.logdir, flush_secs=60)
         self.early_stop_patience = params.training_params.early_stop_patience
