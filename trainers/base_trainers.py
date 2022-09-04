@@ -263,7 +263,7 @@ class MixedPrecisionTrainerMixin(object):
             self.scaler.scale(output['loss']).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-            if not self.schduler_step_after_epoch:
+            if not self.scheduler_step_after_epoch:
                 self._scheduler_step(logs)
             return output, logs
         return wrapper   

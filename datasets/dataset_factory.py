@@ -9,6 +9,8 @@ from mllib.param import BaseParameters, Parameterized
 
 from mllib.utils.image_dataset_utils import filter_dataset_by_target, make_val_dataset
 
+from mllib.datasets.tiny_imagenet_dataset import TinyImagenetNPZDataset
+
 class AutoName(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
@@ -55,7 +57,7 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         100, 450, 5000
                                     ),
         SupportedDatasets.TINY_IMAGENET : DatasetConfig(
-                                        torchvision.datasets.ImageFolder,
+                                        TinyImagenetNPZDataset,
                                         200, 475, 5000
                                     )
     }
@@ -101,8 +103,8 @@ class ImageDatasetFactory(AbstractDatasetFactory):
             train_dataset = dataset_class('%s/'%params.datafolder, transform=train_transform, download=True)        
             test_dataset = dataset_class('%s/'%params.datafolder, train=False, transform=test_transform, download=True)
         elif params.dataset == SupportedDatasets.TINY_IMAGENET:
-            train_dataset = dataset_class(os.path.join(params.datafolder, 'train'), transform=train_transform)
-            test_dataset = dataset_class(os.path.join(params.datafolder, 'val'), transform=test_transform)
+            train_dataset = dataset_class(params.datafolder, transform=train_transform)
+            test_dataset = dataset_class(params.datafolder, train=False, transform=test_transform)
 
         filter_dataset_by_target(train_dataset, params.class_idxs)
         train_idxs, val_idxs = make_val_dataset(train_dataset, nclasses, train_class_counts, class_idxs=params.class_idxs)
