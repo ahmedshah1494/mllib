@@ -11,6 +11,8 @@ from mllib.utils.image_dataset_utils import filter_dataset_by_target, make_val_d
 
 from mllib.datasets.tiny_imagenet_dataset import TinyImagenetNPZDataset
 
+from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_imagenet_webdataset
+
 class AutoName(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
@@ -19,6 +21,7 @@ class SupportedDatasets(AutoName):
     CIFAR10 = auto()
     CIFAR100 = auto()
     TINY_IMAGENET = auto()
+    IMAGENET = auto()
     MNIST = auto()
 
 class AbstractDatasetFactory(Parameterized):
@@ -34,6 +37,7 @@ class ImageDatasetFactory(AbstractDatasetFactory):
             self.min_train_class_counts = min_train_class_counts
             self.max_val_counts = max_val_counts
     
+    @define(slots=True)
     class ImageDatasetParams(BaseParameters):
         dataset: SupportedDatasets = None
         datafolder: str = ''
@@ -59,6 +63,11 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         SupportedDatasets.TINY_IMAGENET : DatasetConfig(
                                         TinyImagenetNPZDataset,
                                         200, 475, 5000
+                                    ),
+        SupportedDatasets.IMAGENET : DatasetConfig(
+                                        get_imagenet_webdataset,
+                                        1000, 127, 2
+                                        
                                     )
     }
 
@@ -105,6 +114,14 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         elif params.dataset == SupportedDatasets.TINY_IMAGENET:
             train_dataset = dataset_class(params.datafolder, transform=train_transform)
             test_dataset = dataset_class(params.datafolder, train=False, transform=test_transform)
+        elif params.dataset == SupportedDatasets.IMAGENET:
+            num_train_shards = min(params.max_num_train, cfg.min_train_class_counts)
+            num_val_shards = cfg.max_val_counts
+            num_test_shards = params.max_num_test if params.max_num_test < np.inf else None
+            train_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_train_shards, train=True, transform=train_transform)
+            val_dataset = get_imagenet_webdataset(params.datafolder, first_shard_idx=num_train_shards, nshards=num_val_shards, train=True, transform=train_transform)
+            test_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_test_shards, train=False, transform=test_transform)
+            return train_dataset, val_dataset, test_dataset, nclasses
 
         filter_dataset_by_target(train_dataset, params.class_idxs)
         train_idxs, val_idxs = make_val_dataset(train_dataset, nclasses, train_class_counts, class_idxs=params.class_idxs)
