@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple, Type, List
+from typing import Callable, Literal, NamedTuple, Type, List
 import attrs
 from attrs import define, field
 import torch
@@ -75,6 +75,24 @@ class CyclicLRConfig(AbstractSchedulerConfig):
     max_momentum: float = 0.9
     last_epoch: int = - 1
     verbose: bool = False
+
+@define(slots=False)
+class OneCycleLRConfig(AbstractSchedulerConfig):
+    _cls: Type[torch.optim.lr_scheduler._LRScheduler] = torch.optim.lr_scheduler.OneCycleLR
+    max_lr: float = None
+    total_steps: int = None
+    epochs: int = None
+    steps_per_epoch: int = None
+    pct_start: float = 0.3
+    anneal_strategy: Literal['cos', 'linear'] = 'cos'
+    cycle_momentum: bool = True
+    base_momentum: float = 0.85
+    max_momentum: float = 0.95
+    div_factor: float = 25.0
+    final_div_factor: float = 10000.0
+    three_phase: bool = False
+    last_epoch: int = - 1
+    verbose=False
 
 class _SequentialLRWrapper(torch.optim.lr_scheduler.SequentialLR):
     def __init__(self, optimizer, schedulers: List[AbstractSchedulerConfig], milestones: List[int], last_epoch: int = -1) -> None:

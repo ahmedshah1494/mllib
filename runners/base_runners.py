@@ -104,7 +104,6 @@ class BaseRunner(AbstractRunner):
         optimizer = self.create_optimizer(model.parameters())
         scheduler = self.create_scheduler(optimizer)
         train_loader, val_loader, test_loader = self.create_dataloaders()
-
         self.trainer = trainer_params.cls(trainer_params, model, train_loader, val_loader, test_loader, optimizer, scheduler, device=device)
     
     def save_task(self):
