@@ -140,7 +140,7 @@ class Trainer(AbstractTrainer):
 
     def _batch_loop(self, func, loader, epoch_idx, logging=True):
         t = tqdm(enumerate(loader))
-        t.set_description('epoch %d' % epoch_idx)
+        t.set_description(f'{"/".join(self.logdir.split("/")[-2:])} epoch {epoch_idx}')
         all_outputs = []
         for i, batch in t:
             batch = _move_tensors_to_device(batch, self.device)
