@@ -66,9 +66,8 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
 def identity(x):
     return x
 
-def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, train=True, transform=None):
+def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, train=True, transform=None, shuffle=10_000, len_shard=10_000):
     if train:
-        shuffle = 10_000
         if nshards is None:
             nshards = 1282
         urls = "imagenet-train-{}.tar"
@@ -89,7 +88,7 @@ def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, train=True, t
         .decode("pil")
         .to_tuple("jpg;png;jpeg cls")
         .map_tuple(transform, identity)
-        .with_length(nshards*10_000)
+        .with_length(nshards*len_shard)
     )
     return dataset
         
