@@ -15,6 +15,7 @@ class SupportedAttacks(Enum):
     PGDL2 = auto()
     PGDLINF = auto()
     APGDLINF = auto()
+    APGDL2 = auto()
     SQUARELINF = auto()
     RANDOMLY_TARGETED_SQUARELINF = auto()
     HOPSKIPJUMPLINF = auto()
@@ -71,11 +72,33 @@ class TorchAttackPGDInfParams(AbstractAttackConfig):
 @define(slots=False)
 class TorchAttackAPGDInfParams(AbstractAttackConfig):
     _cls = torchattacks.APGD
+    norm: str = 'Linf'
     eps: float = 8/255
-    nsteps: int = 10
-    seed: int = time()
+    nsteps: int = 100
     n_restarts: int = 1
+    seed: int = field(factory=lambda : int(time()))
+    loss: str = 'ce'
     eot_iter: int = 1
+    rho: float = .75
+    verbose:bool=False
+
+    def asdict(self):
+        d = super().asdict()
+        d['steps'] = d.pop('nsteps')
+        return d
+
+@define(slots=False)
+class TorchAttackAPGDL2Params(AbstractAttackConfig):
+    _cls = torchattacks.APGD
+    norm: str = 'L2'
+    eps: float = 1.
+    nsteps: int = 100
+    n_restarts: int = 1
+    seed: int = field(factory=lambda : int(time()))
+    loss: str = 'ce'
+    eot_iter: int = 1
+    rho: float = .75
+    verbose:bool=False
 
     def asdict(self):
         d = super().asdict()
@@ -156,6 +179,7 @@ class AttackParamFactory:
     torchattack_params = {
         SupportedAttacks.PGDLINF: TorchAttackPGDInfParams,
         SupportedAttacks.APGDLINF: TorchAttackAPGDInfParams,
+        SupportedAttacks.APGDL2: TorchAttackAPGDL2Params,
         SupportedAttacks.SQUARELINF: TorchAttackSquareInfParams,
         SupportedAttacks.RANDOMLY_TARGETED_SQUARELINF: TorchAttackRandomlyTargetedSquareInfParams
     }
