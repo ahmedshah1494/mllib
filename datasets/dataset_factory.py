@@ -26,6 +26,7 @@ class SupportedDatasets(AutoName):
     IMAGENET10 = auto()
     IMAGENET100_64 = auto()
     IMAGENET100_81 = auto()
+    IMAGENET75_64 = auto()
     IMAGENET100 = auto()
     MNIST = auto()
 
@@ -80,6 +81,10 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         SupportedDatasets.IMAGENET100_81 : DatasetConfig(
                                         TinyImagenetNPZDataset,
                                         100, 1275, 2500
+                                    ),
+        SupportedDatasets.IMAGENET75_64 : DatasetConfig(
+                                        TinyImagenetNPZDataset,
+                                        75, 1275, 2500
                                     ),
         SupportedDatasets.IMAGENET : DatasetConfig(
                                         get_imagenet_webdataset,
