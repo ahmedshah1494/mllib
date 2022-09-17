@@ -26,13 +26,15 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
             filelist_path = os.path.join(root, 'train_paths.txt')
         else:
             filelist_path = os.path.join(root, 'val_paths.txt')
+        pth2cls = lambda pth: pth.split('/')[-2]
         filelist = readlines_and_strip(filelist_path)
+        filelist = sorted(filelist, key=pth2cls)
         self.samples = []
         self.targets = []
         self.class_to_idx = {}
         for pth in filelist:
             self.samples.append(os.path.join(root, pth))
-            cls = pth.split('/')[-2]
+            cls = pth2cls(pth)
             self.targets.append(self.class_to_idx.setdefault(cls, len(self.class_to_idx)))
         self.classes = sorted(list(self.class_to_idx.keys()), key=lambda x: self.class_to_idx[x])
         
@@ -66,16 +68,22 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
 def identity(x):
     return x
 
-def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, train=True, transform=None, shuffle=10_000, len_shard=10_000):
-    if train:
+def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, split='train', transform=None, shuffle=10_000, len_shard=10_000):
+    if split =='train':
         if nshards is None:
-            nshards = 1282
+            nshards = 127
         urls = "imagenet-train-{}.tar"
-    else:
+    elif split =='val':
+        if nshards is None:
+            nshards = 8
+        urls = "imagenet-trainval-{}.tar"
+    elif split == 'test':
         shuffle = 0
         if nshards is None:
             nshards = 7
         urls = "imagenet-val-{}.tar"
+    else:
+        raise ValueError(f'split must be one of train, val, or test, but got {split}')
     if nshards > 1:
         shard_str = f'{{{first_shard_idx:06d}..{first_shard_idx+nshards-1:06d}}}'
     else:
@@ -83,7 +91,7 @@ def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, train=True, t
     urls = os.path.join(root, urls.format(shard_str))
     print(nshards, urls)
     dataset = (
-        wds.WebDataset(urls, shardshuffle=True)
+        wds.WebDataset(urls, shardshuffle=True, nodesplitter=wds.split_by_node)
         .shuffle(shuffle, initial=shuffle//2)
         .decode("pil")
         .to_tuple("jpg;png;jpeg cls")

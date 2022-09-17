@@ -23,6 +23,7 @@ class SupportedDatasets(AutoName):
     CIFAR100 = auto()
     TINY_IMAGENET = auto()
     IMAGENET = auto()
+    IMAGENET_FOLDER = auto()
     IMAGENET10 = auto()
     IMAGENET100_64 = auto()
     IMAGENET100_81 = auto()
@@ -88,7 +89,11 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                     ),
         SupportedDatasets.IMAGENET : DatasetConfig(
                                         get_imagenet_webdataset,
-                                        1000, 127, 2
+                                        1000, 127, 8
+                                    ),
+        SupportedDatasets.IMAGENET_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        1000, 1271, 10
                                     ),
         # SupportedDatasets.IMAGENET100 : DatasetConfig(
         #                                 get_imagenet_webdataset,
@@ -148,9 +153,9 @@ class ImageDatasetFactory(AbstractDatasetFactory):
             num_val_shards = cfg.max_val_counts
             num_test_shards = params.max_num_test if params.max_num_test < np.inf else None
             len_shard = 10_000 if params.dataset == SupportedDatasets.IMAGENET else 5_000
-            train_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_train_shards, train=True, transform=train_transform, len_shard=len_shard)
-            val_dataset = get_imagenet_webdataset(params.datafolder, first_shard_idx=num_train_shards, nshards=num_val_shards, train=True, transform=train_transform, len_shard=len_shard)
-            test_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_test_shards, train=False, transform=test_transform, len_shard=len_shard)
+            train_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_train_shards, split='train', transform=train_transform, len_shard=len_shard)
+            val_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_val_shards, split='val', transform=train_transform, len_shard=len_shard)
+            test_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_test_shards, split='test', transform=test_transform, len_shard=len_shard)
             return train_dataset, val_dataset, test_dataset, nclasses
         elif cfg.dataset_class == torchvision.datasets.ImageFolder:
             train_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'train'), transform=train_transform)
