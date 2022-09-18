@@ -39,13 +39,14 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
         self.classes = sorted(list(self.class_to_idx.keys()), key=lambda x: self.class_to_idx[x])
         
         root = self.root = os.path.expanduser(root)
-        wnid_to_classes = load_meta_file(self.root)[0]
-        self.root = root
+        if os.path.exists(os.path.join(self.root, 'meta.bin')):
+            wnid_to_classes = load_meta_file(self.root)[0]
+            self.root = root
 
-        self.wnids = self.classes
-        self.wnid_to_idx = self.class_to_idx
-        self.classes = [wnid_to_classes[wnid] for wnid in self.wnids]
-        self.class_to_idx = {cls: idx for idx, clss in enumerate(self.classes) for cls in clss}
+            self.wnids = self.classes
+            self.wnid_to_idx = self.class_to_idx
+            self.classes = [wnid_to_classes[wnid] for wnid in self.wnids]
+            self.class_to_idx = {cls: idx for idx, clss in enumerate(self.classes) for cls in clss}
 
         self.samples = np.array(self.samples)
         self.targets = np.array(self.targets)
@@ -96,7 +97,7 @@ def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, split='train'
         .decode("pil")
         .to_tuple("jpg;png;jpeg cls")
         .map_tuple(transform, identity)
-        .with_length(nshards*len_shard)
+        # .with_length(nshards*len_shard)
     )
     return dataset
         

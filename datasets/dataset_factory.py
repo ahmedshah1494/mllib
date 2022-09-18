@@ -89,7 +89,7 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                     ),
         SupportedDatasets.IMAGENET : DatasetConfig(
                                         get_imagenet_webdataset,
-                                        1000, 127, 8
+                                        1000, 128, 8
                                     ),
         SupportedDatasets.IMAGENET_FOLDER : DatasetConfig(
                                         torchvision.datasets.ImageFolder,
