@@ -20,12 +20,9 @@ def load_meta_file(root: str, file: Optional[str] = None) -> Tuple[Dict[str, str
     return torch.load(file)
 
 class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
-    def __init__(self, root: str, train=True, transforms: Optional[Callable] = None, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None) -> None:
+    def __init__(self, root: str, split=True, transforms: Optional[Callable] = None, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None) -> None:
         super().__init__(root, transforms, transform, target_transform)
-        if train:
-            filelist_path = os.path.join(root, 'train_paths.txt')
-        else:
-            filelist_path = os.path.join(root, 'val_paths.txt')
+        filelist_path = os.path.join(root, f'{split}_paths.txt')
         pth2cls = lambda pth: pth.split('/')[-2]
         filelist = readlines_and_strip(filelist_path)
         filelist = sorted(filelist, key=pth2cls)
@@ -69,20 +66,20 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
 def identity(x):
     return x
 
-def get_imagenet_webdataset(root, first_shard_idx=0, nshards=None, split='train', transform=None, shuffle=10_000, len_shard=10_000):
+def get_webdataset(root, dataset_name, first_shard_idx=0, nshards=None, split='train', transform=None, shuffle=10_000, len_shard=10_000):
     if split =='train':
         if nshards is None:
             nshards = 127
-        urls = "imagenet-train-{}.tar"
+        urls = dataset_name+"-train-{}.tar"
     elif split =='val':
         if nshards is None:
             nshards = 8
-        urls = "imagenet-trainval-{}.tar"
+        urls = dataset_name+"-trainval-{}.tar"
     elif split == 'test':
         shuffle = 0
         if nshards is None:
             nshards = 7
-        urls = "imagenet-val-{}.tar"
+        urls = dataset_name+"-val-{}.tar"
     else:
         raise ValueError(f'split must be one of train, val, or test, but got {split}')
     if nshards > 1:
