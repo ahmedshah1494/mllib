@@ -11,7 +11,7 @@ from mllib.utils.image_dataset_utils import filter_dataset_by_target, make_val_d
 
 from mllib.datasets.tiny_imagenet_dataset import TinyImagenetNPZDataset
 
-from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_imagenet_webdataset
+from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_webdataset
 from webdataset import WebDataset
 
 class AutoName(Enum):
@@ -23,6 +23,12 @@ class SupportedDatasets(AutoName):
     CIFAR100 = auto()
     TINY_IMAGENET = auto()
     IMAGENET = auto()
+    ECOSET = auto()
+    ECOSET_FOLDER = auto()
+    ECOSET10 = auto()
+    ECOSET10_FOLDER = auto()
+    ECOSET100_FOLDER = auto()
+    ECOSET100 = auto()
     IMAGENET_FOLDER = auto()
     IMAGENET10 = auto()
     IMAGENET100_64 = auto()
@@ -30,6 +36,7 @@ class SupportedDatasets(AutoName):
     IMAGENET75_64 = auto()
     IMAGENET100 = auto()
     MNIST = auto()
+    FMNIST = auto()
 
 class AbstractDatasetFactory(Parameterized):
     @classmethod
@@ -88,8 +95,32 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         75, 1275, 2500
                                     ),
         SupportedDatasets.IMAGENET : DatasetConfig(
-                                        get_imagenet_webdataset,
+                                        get_webdataset,
                                         1000, 128, 8
+                                    ),
+        SupportedDatasets.ECOSET : DatasetConfig(
+                                        get_webdataset,
+                                        565, 176, 8
+                                    ),
+        SupportedDatasets.ECOSET_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        565, 5000, 0
+                                    ),
+        SupportedDatasets.ECOSET10 : DatasetConfig(
+                                        TinyImagenetNPZDataset,
+                                        10, 4800, 859
+                                    ),
+        SupportedDatasets.ECOSET10_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        10, 4800, 859
+                                    ),
+        SupportedDatasets.ECOSET100_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        100, 5000, 0
+                                    ),
+        SupportedDatasets.ECOSET100 : DatasetConfig(
+                                        get_webdataset,
+                                        100, 40, 4
                                     ),
         SupportedDatasets.IMAGENET_FOLDER : DatasetConfig(
                                         torchvision.datasets.ImageFolder,
@@ -134,6 +165,7 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         train_class_counts = min(cfg.min_train_class_counts, train_class_counts)
         test_class_counts = params.max_num_test // nclasses
         max_val_counts = cfg.max_val_counts
+        print(params, train_class_counts, max_val_counts, test_class_counts)
 
         if params.custom_transforms is not None:
             train_transform, test_transform = params.custom_transforms
@@ -142,33 +174,40 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         print(train_transform)
         print(test_transform)
         
-        if params.dataset in [SupportedDatasets.CIFAR10, SupportedDatasets.CIFAR100, SupportedDatasets.MNIST]:
+        if params.dataset in [SupportedDatasets.CIFAR10, SupportedDatasets.CIFAR100, SupportedDatasets.MNIST, SupportedDatasets.FMNIST]:
             train_dataset = dataset_class('%s/'%params.datafolder, transform=train_transform, download=True)        
             test_dataset = dataset_class('%s/'%params.datafolder, train=False, transform=test_transform, download=True)
         elif cfg.dataset_class in [TinyImagenetNPZDataset, ImagenetFileListDataset]: #params.dataset in [SupportedDatasets.TINY_IMAGENET, SupportedDatasets.IMAGENET10, SupportedDatasets.IMAGENET100_64]:
-            train_dataset = dataset_class(params.datafolder, transform=train_transform)
-            test_dataset = dataset_class(params.datafolder, train=False, transform=test_transform)
-        elif (cfg.dataset_class == WebDataset) or (params.dataset in [SupportedDatasets.IMAGENET]):#, SupportedDatasets.IMAGENET100]:
+            train_dataset = dataset_class(params.datafolder, split='train', transform=train_transform)
+            if os.path.exists(os.path.join(params.datafolder, 'val.pkl.npz')):
+                val_dataset = dataset_class(params.datafolder, split='val', transform=train_transform)
+            test_dataset = dataset_class(params.datafolder, split='test', transform=test_transform)
+        elif (cfg.dataset_class == WebDataset) or (params.dataset in [SupportedDatasets.IMAGENET, SupportedDatasets.ECOSET, SupportedDatasets.ECOSET100]):#, SupportedDatasets.IMAGENET100]:
             num_train_shards = min(params.max_num_train, cfg.min_train_class_counts)
             num_val_shards = cfg.max_val_counts
             num_test_shards = params.max_num_test if params.max_num_test < np.inf else None
             len_shard = 10_000 if params.dataset == SupportedDatasets.IMAGENET else 5_000
-            train_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_train_shards, split='train', transform=train_transform, len_shard=len_shard)
-            val_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_val_shards, split='val', transform=train_transform, len_shard=len_shard)
-            test_dataset = get_imagenet_webdataset(params.datafolder, nshards=num_test_shards, split='test', transform=test_transform, len_shard=len_shard)
+            train_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_train_shards, split='train', transform=train_transform, len_shard=len_shard)
+            val_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_val_shards, split='val', transform=train_transform, len_shard=len_shard)
+            test_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_test_shards, split='test', transform=test_transform, len_shard=len_shard)
             return train_dataset, val_dataset, test_dataset, nclasses
         elif cfg.dataset_class == torchvision.datasets.ImageFolder:
             train_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'train'), transform=train_transform)
-            test_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
-
+            if os.path.exists(os.path.join(params.datafolder, 'test')):
+                test_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'test'), transform=test_transform)
+                val_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
+            else:
+                test_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
         filter_dataset_by_target(train_dataset, params.class_idxs)
         train_idxs, val_idxs = make_val_dataset(train_dataset, nclasses, train_class_counts, class_idxs=params.class_idxs)
         if len(val_idxs) > max_val_counts:
             val_idxs = np.random.choice(val_idxs, max_val_counts, replace=False)
-        val_dataset = torch.utils.data.Subset(train_dataset, val_idxs)
+        if 'val_dataset' not in locals():
+            val_dataset = torch.utils.data.Subset(train_dataset, val_idxs)
         train_dataset = torch.utils.data.Subset(train_dataset, train_idxs)
 
         filter_dataset_by_target(test_dataset, params.class_idxs)
         test_idxs, _ = make_val_dataset(test_dataset, nclasses, test_class_counts, class_idxs=params.class_idxs)
         test_dataset = torch.utils.data.Subset(test_dataset, test_idxs)
+        print(f'train_dataset_len: {len(train_dataset)}, val_dataset_len: {len(val_dataset)}, test_dataset_len: {len(test_dataset)}')
         return train_dataset, val_dataset, test_dataset, nclasses
