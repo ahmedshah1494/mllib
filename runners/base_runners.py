@@ -1,8 +1,9 @@
+from copy import deepcopy
 import os
 import pickle
-from sched import scheduler
+from attrs import define, asdict
 import shutil
-from typing import Tuple
+from typing import List, Optional, Tuple, Union
 import torch
 from mllib.datasets.dataset_factory import ImageDatasetFactory
 from mllib.tasks.base_tasks import AbstractTask
@@ -11,6 +12,60 @@ from mllib.utils.config import ConfigBase
 
 from mllib.utils.common_utils import is_file_in_dir
 
+import pytorch_lightning as pl
+from pytorch_lightning.lite import LightningLite
+from pytorch_lightning.accelerators.accelerator import Accelerator
+from pytorch_lightning.strategies import Strategy
+from pytorch_lightning.plugins import PLUGIN_INPUT
+
+import webdataset as wd
+
+class LightningLiteTrainerWrapper(LightningLite):
+    def __init__(self, trainer, accelerator: Optional[Union[str, Accelerator]] = None, strategy: Optional[Union[str, Strategy]] = None, 
+                    devices: Optional[Union[List[int], str, int]] = None, num_nodes: int = 1, precision: Union[int, str] = 32, 
+                    plugins: Optional[Union[PLUGIN_INPUT, List[PLUGIN_INPUT]]] = None, gpus: Optional[Union[List[int], str, int]] = None, 
+                    tpu_cores: Optional[Union[List[int], str, int]] = None) -> None:
+        super().__init__(accelerator, strategy, devices, num_nodes, precision, plugins, gpus, tpu_cores)
+        self.trainer = trainer
+    
+    def __getattribute__(self, __name: str):
+        try:
+            return super().__getattribute__(__name)
+        except:
+            return getattr(self.trainer, __name)
+
+    def setup_loaders(self, *loaders):
+        _loaders = []
+        for loader in loaders:
+            if not isinstance(loader, wd.WebLoader):
+                loader = self.setup_dataloaders(loader)
+            _loaders.append(loader)
+        return tuple(loaders)
+
+    def run(self, train):
+        device = self.trainer.device
+        train_loader = self.trainer.train_loader
+        val_loader = self.trainer.val_loader
+        test_loader = self.trainer.test_loader
+
+        self.trainer.lightning_lite_instance = self
+        self.trainer.is_rank_zero = self.is_global_zero
+        self.trainer.model, self.trainer.optimizer = self.setup(self.trainer.model, self.trainer.optimizer)
+        self.trainer.train_loader, self.trainer.val_loader, self.trainer.test_loader = self.setup_loaders(self.trainer.train_loader, self.trainer.val_loader, self.trainer.test_loader)
+        if train:
+            self.trainer.train()
+        else:
+            self.trainer.test()
+        
+        if isinstance(self.trainer.model, pl.lite.wrappers._LiteModule):
+            self.trainer.model = self.trainer.model.module
+        self.trainer.optimizer = self.trainer.optimizer.optimizer
+        self.trainer.train_loader = train_loader
+        self.trainer.val_loader = val_loader
+        self.trainer.test_loader = test_loader
+        self.trainer.lightning_lite_instance = None
+        self.trainer.is_rank_zero = True
+        self.trainer.device = device
 
 class AbstractRunner(object):
     def create_datasets(self) -> Tuple[torch.utils.data.Dataset]:
@@ -26,12 +81,15 @@ class AbstractRunner(object):
         raise NotImplementedError
 
 class BaseRunner(AbstractRunner):
-    def __init__(self, task: AbstractTask, ckp_pth: str=None, load_model_from_ckp: bool=False) -> None:
+    def __init__(self, task: AbstractTask, num_trainings: int=1, ckp_pth: str=None, load_model_from_ckp: bool=False, wrap_trainer_with_lightning: bool=False, lightning_kwargs={}) -> None:
         super().__init__()
         self.task = task
         self.trainer: Trainer = None
+        self.num_trainings = num_trainings
         self.ckp_pth = ckp_pth
         self.load_model_from_ckp = load_model_from_ckp
+        self.wrap_trainer_with_lightning = wrap_trainer_with_lightning
+        self.lightning_kwargs = lightning_kwargs
     
     def create_datasets(self) -> Tuple[torch.utils.data.Dataset]:
         p = self.task.get_dataset_params()
@@ -110,18 +168,39 @@ class BaseRunner(AbstractRunner):
         self.task.save_task(os.path.join(self.trainer.logdir, 'task.pkl'))
     
     def train(self):
-        self.trainer.train()
-        self.trainer.logger.flush()
+        if self.wrap_trainer_with_lightning:
+            LightningLiteTrainerWrapper(self.trainer, **(self.lightning_kwargs)).run(True)
+        elif isinstance(self.trainer, pl.LightningModule):
+            if not hasattr(self, 'plTrainer'):
+                if self.ckp_pth is not None:
+                    self.lightning_kwargs['resume_from_checkpoint'] = self.ckp_pth
+                self.plTrainer = pl.Trainer(accelerator='auto', devices='auto', strategy='ddp' if torch.cuda.device_count() > 1 else None, logger=self.trainer.mloggers,
+                                            max_epochs=self.trainer.nepochs, **(self.lightning_kwargs), log_every_n_steps=10)
+            if self.lightning_kwargs.get('auto_lr_find', False):
+                print('tuning_lr')
+                lr_finder = self.plTrainer.tuner.lr_find(self.trainer, train_dataloaders=self.trainer.train_loader)
+                lr_finder.plot().savefig('lr_tuning_curve.png')
+                exit()
+            self.plTrainer.fit(self.trainer, train_dataloaders=self.trainer.train_loader, val_dataloaders=self.trainer.val_loader)
+        else:
+            self.trainer.train()
         self.save_task()
     
     def test(self):
-        self.trainer.test()
-        self.trainer.logger.flush()
+        if self.wrap_trainer_with_lightning:
+            LightningLiteTrainerWrapper(self.trainer, **(self.lightning_kwargs)).run(False)
+        elif isinstance(self.trainer, pl.LightningModule):
+            if not hasattr(self, 'plTrainer'):
+                self.plTrainer = pl.Trainer(accelerator='auto', devices=1, logger=self.trainer.mloggers, 
+                                            max_epochs=1, **(self.lightning_kwargs))
+            self.plTrainer.test(self.trainer, dataloaders=self.trainer.test_loader)
+        else:
+            self.trainer.test()
         self.save_task()
     
     def run(self):
-        ntrains = self.task.get_experiment_params().num_trainings
-        for _ in range(ntrains):
+        # ntrains = self.task.get_experiment_params().num_trainings
+        for _ in range(self.num_trainings):
             self.create_trainer()
             self.train()
             self.test()
