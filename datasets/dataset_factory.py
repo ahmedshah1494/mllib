@@ -13,6 +13,7 @@ from mllib.datasets.tiny_imagenet_dataset import TinyImagenetNPZDataset
 
 from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_webdataset
 from webdataset import WebDataset
+from mllib.datasets.torchaudio_datasets import SpeechCommandDatasetWrapper
 
 class AutoName(Enum):
     def _generate_next_value_(name, start, count, last_values):
@@ -37,6 +38,8 @@ class SupportedDatasets(AutoName):
     IMAGENET100 = auto()
     MNIST = auto()
     FMNIST = auto()
+    SVHN = auto()
+    SPEECHCOMMANDS = auto()
 
 class AbstractDatasetFactory(Parameterized):
     @classmethod
@@ -62,9 +65,21 @@ class ImageDatasetFactory(AbstractDatasetFactory):
 
 
     dataset_config = {
+        SupportedDatasets.SPEECHCOMMANDS: DatasetConfig(
+                                        SpeechCommandDatasetWrapper,
+                                        10, 4000, 4000
+                                    ),
         SupportedDatasets.MNIST : DatasetConfig(
                                         torchvision.datasets.MNIST,
                                         10, 4500, 5000
+                                    ),
+        SupportedDatasets.FMNIST : DatasetConfig(
+                                        torchvision.datasets.FashionMNIST,
+                                        10, 4500, 5000
+                                    ),
+        SupportedDatasets.SVHN : DatasetConfig(
+                                        torchvision.datasets.SVHN,
+                                        10, 7000, 3500
                                     ),
         SupportedDatasets.CIFAR10 : DatasetConfig(
                                         torchvision.datasets.CIFAR10,
@@ -177,6 +192,12 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         if params.dataset in [SupportedDatasets.CIFAR10, SupportedDatasets.CIFAR100, SupportedDatasets.MNIST, SupportedDatasets.FMNIST]:
             train_dataset = dataset_class('%s/'%params.datafolder, transform=train_transform, download=True)        
             test_dataset = dataset_class('%s/'%params.datafolder, train=False, transform=test_transform, download=True)
+        elif params.dataset == SupportedDatasets.SVHN:
+            train_dataset = dataset_class('%s/'%params.datafolder, transform=train_transform, download=True)        
+            test_dataset = dataset_class('%s/'%params.datafolder, split='test', transform=test_transform, download=True)
+
+            setattr(train_dataset, 'targets', train_dataset.labels)
+            setattr(test_dataset, 'targets', test_dataset.labels)
         elif cfg.dataset_class in [TinyImagenetNPZDataset, ImagenetFileListDataset]: #params.dataset in [SupportedDatasets.TINY_IMAGENET, SupportedDatasets.IMAGENET10, SupportedDatasets.IMAGENET100_64]:
             train_dataset = dataset_class(params.datafolder, split='train', transform=train_transform)
             if os.path.exists(os.path.join(params.datafolder, 'val.pkl.npz')):
@@ -198,6 +219,11 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                 val_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
             else:
                 test_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
+        elif params.dataset == SupportedDatasets.SPEECHCOMMANDS:
+            train_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='training', download=True)
+            val_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='validation', download=True)
+            test_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='testing', download=True)
+
         filter_dataset_by_target(train_dataset, params.class_idxs)
         train_idxs, val_idxs = make_val_dataset(train_dataset, nclasses, train_class_counts, class_idxs=params.class_idxs)
         if len(val_idxs) > max_val_counts:
