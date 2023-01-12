@@ -1,6 +1,10 @@
 from enum import Enum, auto
 from time import time
-from typing import List, Literal, Type, Union
+from typing import List, Type, Union
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 from attrs import define, field
 import attrs

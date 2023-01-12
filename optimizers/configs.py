@@ -1,4 +1,8 @@
-from typing import Callable, Literal, NamedTuple, Type, List
+from typing import Callable, NamedTuple, Type, List
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 import attrs
 from attrs import define, field
 import torch
