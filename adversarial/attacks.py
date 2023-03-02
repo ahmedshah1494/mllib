@@ -13,6 +13,7 @@ import torch
 
 from torchattacks.attack import Attack
 import torchattacks
+from autoattack.autopgd_base import APGDAttack
 import foolbox
 
 class SupportedAttacks(Enum):
@@ -25,9 +26,12 @@ class SupportedAttacks(Enum):
     HOPSKIPJUMPLINF = auto()
     BOUNDARY = auto()
     CWL2 = auto()
+    AUTOATTACK = auto()
+    APGDL1 = auto()
 
 class SupportedBackend(Enum):
     TORCHATTACKS = auto()
+    AUTOATTACK = auto()
     FOOLBOX = auto()
 
 @define(slots=False)
@@ -109,6 +113,35 @@ class TorchAttackAPGDL2Params(AbstractAttackConfig):
         d['steps'] = d.pop('nsteps')
         return d
 
+class AutoAttackkWrapper:
+    atkcls = None
+    def __init__(self, *args, **kwargs) -> None:
+        self.attack = self.atkcls(*args, **kwargs)
+    
+    def __call__(self, x, y):
+        return self.attack.perturb(x, y)
+
+class WrappedAutoAttackAPGD(AutoAttackkWrapper):
+    atkcls = APGDAttack
+
+@define(slots=False)
+class AutoAttackAPGDL1Params(AbstractAttackConfig):
+    _cls = WrappedAutoAttackAPGD
+    norm: str = 'L1'
+    eps: float = 1.
+    nsteps: int = 100
+    n_restarts: int = 1
+    seed: int = field(factory=lambda : int(time()))
+    loss: str = 'ce'
+    eot_iter: int = 1
+    rho: float = .75
+    verbose:bool=False
+
+    def asdict(self):
+        d = super().asdict()
+        d['n_iter'] = d.pop('nsteps')
+        return d
+
 @define(slots=False)
 class TorchAttackSquareInfParams(AbstractAttackConfig):
     _cls = torchattacks.Square
@@ -120,6 +153,44 @@ class TorchAttackSquareInfParams(AbstractAttackConfig):
 @define(slots=False)
 class TorchAttackRandomlyTargetedSquareInfParams(TorchAttackSquareInfParams):
     _cls = get_randomly_targeted_torchattack_cls(TorchAttackSquareInfParams._cls)
+
+class AutoAttack(torchattacks.attack.Attack):
+    def __init__(self, model, norm='Linf', eps=.3, version='standard', n_classes=10, seed=None, verbose=False):
+        super().__init__("AutoAttack", model)
+        self.norm = norm
+        self.eps = eps
+        self.version = version
+        self.n_classes = n_classes
+        self.seed = seed
+        self.verbose = verbose
+        self._supported_mode = ['default']
+        self.autoattack = torchattacks.MultiAttack([
+            torchattacks.APGD(model, eps=eps, norm=norm, seed=self.get_seed(), verbose=verbose, loss='ce', n_restarts=1, steps=100),
+            torchattacks.APGDT(model, eps=eps, norm=norm, seed=self.get_seed(), verbose=verbose, n_classes=n_classes, n_restarts=1, steps=100),
+            torchattacks.FAB(model, eps=eps, norm=norm, seed=self.get_seed(), verbose=verbose, n_classes=n_classes, n_restarts=1, steps=100),
+            torchattacks.Square(model, eps=eps, norm=norm, seed=self.get_seed(), verbose=verbose, n_queries=5000, n_restarts=1),
+        ])
+
+    def forward(self, images, labels):
+        images = images.clone().detach().to(self.device)
+        labels = labels.clone().detach().to(self.device)
+        adv_images = self.autoattack(images, labels)
+
+        return adv_images
+
+    def get_seed(self):
+        return time() if self.seed is None else self.seed
+
+
+@define(slots=False)
+class TorchAttackAutoAttackParams(AbstractAttackConfig):
+    _cls = AutoAttack
+    eps: float = 8/255
+    norm: str = 'Linf'
+    version='standard'
+    n_classes=10
+    seed=None
+    verbose=False
 
 class FoolboxAttackWrapper:
     atkcls: Type[foolbox.attacks.base.Attack] = None
@@ -185,16 +256,21 @@ class AttackParamFactory:
         SupportedAttacks.APGDLINF: TorchAttackAPGDInfParams,
         SupportedAttacks.APGDL2: TorchAttackAPGDL2Params,
         SupportedAttacks.SQUARELINF: TorchAttackSquareInfParams,
-        SupportedAttacks.RANDOMLY_TARGETED_SQUARELINF: TorchAttackRandomlyTargetedSquareInfParams
+        SupportedAttacks.RANDOMLY_TARGETED_SQUARELINF: TorchAttackRandomlyTargetedSquareInfParams,
+        SupportedAttacks.AUTOATTACK: TorchAttackAutoAttackParams,
     }
     foolbox_params = {
         SupportedAttacks.HOPSKIPJUMPLINF: FoolboxHopSkipJumpInfInitParams,
         SupportedAttacks.BOUNDARY: FoolboxBoundaryAttackInitParams,
         SupportedAttacks.CWL2: FoolboxCWL2AttackInitParams,
     }
+    autoattack_params = {
+        SupportedAttacks.APGDL1: AutoAttackAPGDL1Params
+    }
     backend_params = {
         SupportedBackend.TORCHATTACKS: torchattack_params,
-        SupportedBackend.FOOLBOX: foolbox_params
+        SupportedBackend.FOOLBOX: foolbox_params,
+        SupportedBackend.AUTOATTACK: autoattack_params
     }
 
     @classmethod
