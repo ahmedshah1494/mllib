@@ -171,17 +171,20 @@ class BaseRunner(AbstractRunner):
         if self.wrap_trainer_with_lightning:
             LightningLiteTrainerWrapper(self.trainer, **(self.lightning_kwargs)).run(True)
         elif isinstance(self.trainer, pl.LightningModule):
+            train_loader, val_loader = self.trainer.train_loader, self.trainer.val_loader
+            self.trainer.train_loader = self.trainer.val_loader = None
             if not hasattr(self, 'plTrainer'):
-                if self.ckp_pth is not None:
-                    self.lightning_kwargs['resume_from_checkpoint'] = self.ckp_pth
+                # if self.ckp_pth is not None:
+                #     self.lightning_kwargs['resume_from_checkpoint'] = self.ckp_pth
                 self.plTrainer = pl.Trainer(accelerator='auto', devices='auto', strategy='ddp' if torch.cuda.device_count() > 1 else None, logger=self.trainer.mloggers,
                                             max_epochs=self.trainer.nepochs, **(self.lightning_kwargs), log_every_n_steps=10)
             if self.lightning_kwargs.get('auto_lr_find', False):
                 print('tuning_lr')
-                lr_finder = self.plTrainer.tuner.lr_find(self.trainer, train_dataloaders=self.trainer.train_loader)
+                lr_finder = self.plTrainer.tuner.lr_find(self.trainer, train_dataloaders=train_loader)
                 lr_finder.plot().savefig('lr_tuning_curve.png')
                 exit()
-            self.plTrainer.fit(self.trainer, train_dataloaders=self.trainer.train_loader, val_dataloaders=self.trainer.val_loader)
+            
+            self.plTrainer.fit(self.trainer, train_dataloaders=train_loader, val_dataloaders=val_loader)
         else:
             self.trainer.train()
         self.save_task()
