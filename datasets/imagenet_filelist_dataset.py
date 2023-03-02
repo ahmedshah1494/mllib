@@ -20,7 +20,7 @@ def load_meta_file(root: str, file: Optional[str] = None) -> Tuple[Dict[str, str
     return torch.load(file)
 
 class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
-    def __init__(self, root: str, split=True, transforms: Optional[Callable] = None, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None) -> None:
+    def __init__(self, root: str, split='train', transforms: Optional[Callable] = None, transform: Optional[Callable] = None, target_transform: Optional[Callable] = None) -> None:
         super().__init__(root, transforms, transform, target_transform)
         filelist_path = os.path.join(root, f'{split}_paths.txt')
         pth2cls = lambda pth: pth.split('/')[-2]
@@ -66,6 +66,9 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
 def identity(x):
     return x
 
+def toFloatTensor(x):
+    return torch.FloatTensor(x)
+
 def get_webdataset(root, dataset_name, first_shard_idx=0, nshards=None, split='train', transform=None, shuffle=10_000, len_shard=10_000):
     if split =='train':
         if nshards is None:
@@ -88,12 +91,42 @@ def get_webdataset(root, dataset_name, first_shard_idx=0, nshards=None, split='t
         shard_str = f'{first_shard_idx:06d}'
     urls = os.path.join(root, urls.format(shard_str))
     print(nshards, urls)
+    dataset = wds.WebDataset(urls, shardshuffle=(split=='train'), nodesplitter=wds.split_by_node)
+    if split == 'train':
+        dataset = dataset.shuffle(shuffle, initial=shuffle//2)
     dataset = (
-        wds.WebDataset(urls, shardshuffle=True, nodesplitter=wds.split_by_node)
-        .shuffle(shuffle, initial=shuffle//2)
+        dataset
         .decode("pil")
         .to_tuple("jpg;png;jpeg cls")
         .map_tuple(transform, identity)
+        # .with_length(nshards*len_shard)
+    )
+    return dataset
+
+def get_clickme_webdataset(root, dataset_name, first_shard_idx=0, nshards=None, split='train', transform=None, shuffle=10_000, len_shard=10_000):
+    if split =='train':
+        urls = dataset_name+"-train-{}.tar"
+    elif split =='val':
+        urls = dataset_name+"-trainval-{}.tar"
+    elif split == 'test':
+        shuffle = 0
+        urls = dataset_name+"-val-{}.tar"
+    else:
+        raise ValueError(f'split must be one of train, val, or test, but got {split}')
+    if nshards > 1:
+        shard_str = f'{{{first_shard_idx:06d}..{first_shard_idx+nshards-1:06d}}}'
+    else:
+        shard_str = f'{first_shard_idx:06d}'
+    urls = os.path.join(root, urls.format(shard_str))
+    print(nshards, urls)
+    dataset = wds.WebDataset(urls, shardshuffle=(split=='train'), nodesplitter=wds.split_by_node)
+    if split == 'train':
+        dataset = dataset.shuffle(shuffle, initial=shuffle//2)
+    dataset = (
+        dataset
+        .decode("pil")
+        .to_tuple("jpg;png;jpeg cls heatmap.npy")
+        .map_tuple(transform, identity, toFloatTensor)
         # .with_length(nshards*len_shard)
     )
     return dataset

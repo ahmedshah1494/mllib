@@ -8,10 +8,11 @@ import torchvision
 from mllib.param import BaseParameters, Parameterized
 
 from mllib.utils.image_dataset_utils import filter_dataset_by_target, make_val_dataset
-
+from mllib.datasets.imagefolder_with_annotations import ImageFolderWithAnnotations
 from mllib.datasets.tiny_imagenet_dataset import TinyImagenetNPZDataset
+from mllib.datasets.fixation_point_dataset import FixationPointDataset
 
-from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_webdataset
+from mllib.datasets.imagenet_filelist_dataset import ImagenetFileListDataset, get_webdataset, get_clickme_webdataset
 from webdataset import WebDataset
 from mllib.datasets.torchaudio_datasets import SpeechCommandDatasetWrapper
 
@@ -21,14 +22,21 @@ class AutoName(Enum):
 
 class SupportedDatasets(AutoName):
     CIFAR10 = auto()
+    CIFAR10C = auto()
     CIFAR100 = auto()
     TINY_IMAGENET = auto()
     IMAGENET = auto()
     ECOSET = auto()
     ECOSET_FOLDER = auto()
+    ECOSETC_FOLDER = auto()
     ECOSET10 = auto()
     ECOSET10_FOLDER = auto()
+    ECOSET10wBB_FOLDER = auto()
+    ECOSET10wFIXATIONMAPS_FOLDER = auto()
+    ECOSET100wFIXATIONMAPS_FOLDER = auto()
+    ECOSET10C_FOLDER = auto()
     ECOSET100_FOLDER = auto()
+    ECOSET100C_FOLDER = auto()
     ECOSET100 = auto()
     IMAGENET_FOLDER = auto()
     IMAGENET10 = auto()
@@ -40,6 +48,7 @@ class SupportedDatasets(AutoName):
     FMNIST = auto()
     SVHN = auto()
     SPEECHCOMMANDS = auto()
+    CLICKME = auto()
 
 class AbstractDatasetFactory(Parameterized):
     @classmethod
@@ -85,6 +94,10 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         torchvision.datasets.CIFAR10,
                                         10, 4500, 5000
                                     ),
+        SupportedDatasets.CIFAR10C : DatasetConfig(
+                                        TinyImagenetNPZDataset,
+                                        10, 4500, 5000
+                                    ),
         SupportedDatasets.CIFAR100 : DatasetConfig(
                                         torchvision.datasets.CIFAR100,
                                         100, 450, 5000
@@ -121,6 +134,10 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         torchvision.datasets.ImageFolder,
                                         565, 5000, 0
                                     ),
+        SupportedDatasets.ECOSETC_FOLDER : DatasetConfig(
+                                        ImagenetFileListDataset,
+                                        565, 5000, 0
+                                    ),
         SupportedDatasets.ECOSET10 : DatasetConfig(
                                         TinyImagenetNPZDataset,
                                         10, 4800, 859
@@ -129,9 +146,29 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         torchvision.datasets.ImageFolder,
                                         10, 4800, 859
                                     ),
-        SupportedDatasets.ECOSET100_FOLDER : DatasetConfig(
+        SupportedDatasets.ECOSET10wBB_FOLDER : DatasetConfig(
+                                        ImageFolderWithAnnotations,
+                                        10, 4800, 859
+                                    ),
+        SupportedDatasets.ECOSET10wFIXATIONMAPS_FOLDER : DatasetConfig(
+                                        FixationPointDataset,
+                                        10, 4800, 859
+                                    ),
+        SupportedDatasets.ECOSET100wFIXATIONMAPS_FOLDER : DatasetConfig(
+                                        FixationPointDataset,
+                                        100, 4800, 859
+                                    ),
+        SupportedDatasets.ECOSET10C_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        10, 4800, 9500
+                                    ),
+        SupportedDatasets.ECOSET100C_FOLDER : DatasetConfig(
                                         torchvision.datasets.ImageFolder,
                                         100, 5000, 0
+                                    ),
+        SupportedDatasets.ECOSET100_FOLDER : DatasetConfig(
+                                        torchvision.datasets.ImageFolder,
+                                        100, 5000, 1000
                                     ),
         SupportedDatasets.ECOSET100 : DatasetConfig(
                                         get_webdataset,
@@ -148,7 +185,11 @@ class ImageDatasetFactory(AbstractDatasetFactory):
         SupportedDatasets.IMAGENET100 : DatasetConfig(
                                         ImagenetFileListDataset,
                                         100, 1275, 2500
-                                    )
+                                    ),
+        SupportedDatasets.CLICKME : DatasetConfig(
+                                        get_clickme_webdataset,
+                                        1000, 39, 1
+                                    ),
     }
 
     @classmethod
@@ -203,15 +244,33 @@ class ImageDatasetFactory(AbstractDatasetFactory):
             if os.path.exists(os.path.join(params.datafolder, 'val.pkl.npz')):
                 val_dataset = dataset_class(params.datafolder, split='val', transform=train_transform)
             test_dataset = dataset_class(params.datafolder, split='test', transform=test_transform)
-        elif (cfg.dataset_class == WebDataset) or (params.dataset in [SupportedDatasets.IMAGENET, SupportedDatasets.ECOSET, SupportedDatasets.ECOSET100]):#, SupportedDatasets.IMAGENET100]:
+        elif (cfg.dataset_class == WebDataset) or (params.dataset in [SupportedDatasets.IMAGENET, SupportedDatasets.ECOSET, SupportedDatasets.ECOSET100, SupportedDatasets.CLICKME]):#, SupportedDatasets.IMAGENET100]:
             num_train_shards = min(params.max_num_train, cfg.min_train_class_counts)
             num_val_shards = cfg.max_val_counts
             num_test_shards = params.max_num_test if params.max_num_test < np.inf else None
             len_shard = 10_000 if params.dataset == SupportedDatasets.IMAGENET else 5_000
-            train_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_train_shards, split='train', transform=train_transform, len_shard=len_shard)
-            val_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_val_shards, split='val', transform=train_transform, len_shard=len_shard)
-            test_dataset = get_webdataset(params.datafolder, params.dataset.value.lower(), nshards=num_test_shards, split='test', transform=test_transform, len_shard=len_shard)
+            train_dataset = cfg.dataset_class(params.datafolder, params.dataset.value.lower(), nshards=num_train_shards, split='train', transform=train_transform, len_shard=len_shard)
+            val_dataset = cfg.dataset_class(params.datafolder, params.dataset.value.lower(), nshards=num_val_shards, split='val', transform=train_transform, len_shard=len_shard)
+            test_dataset = cfg.dataset_class(params.datafolder, params.dataset.value.lower(), nshards=num_test_shards, split='test', transform=test_transform, len_shard=len_shard)
             return train_dataset, val_dataset, test_dataset, nclasses
+        elif cfg.dataset_class == ImageFolderWithAnnotations:
+            train_dataset = ImageFolderWithAnnotations(os.path.join(params.datafolder, 'Annotations', 'train'), os.path.join(params.datafolder, 'train'), transform=train_transform)
+            if os.path.exists(os.path.join(params.datafolder, 'test')):
+                test_dataset = ImageFolderWithAnnotations(os.path.join(params.datafolder, 'Annotations', 'test'), os.path.join(params.datafolder, 'test'), transform=test_transform)
+                val_dataset = ImageFolderWithAnnotations(os.path.join(params.datafolder, 'Annotations', 'val'), os.path.join(params.datafolder, 'val'), transform=test_transform)
+            else:
+                test_dataset = ImageFolderWithAnnotations(os.path.join(params.datafolder, 'Annotations', 'val'), os.path.join(params.datafolder, 'val'), transform=test_transform)
+        elif cfg.dataset_class == FixationPointDataset:
+            train_dataset = FixationPointDataset(params.datafolder, 'train', os.path.join(params.datafolder, 'logit_maps'), transform=train_transform)
+            if os.path.exists(os.path.join(params.datafolder, 'test')):
+                test_dataset = FixationPointDataset(params.datafolder, 'test', os.path.join(params.datafolder, 'logit_maps'), transform=test_transform)
+                val_dataset = FixationPointDataset(params.datafolder, 'val', os.path.join(params.datafolder, 'logit_maps'), transform=test_transform)
+            else:
+                test_dataset = FixationPointDataset(params.datafolder, 'val', os.path.join(params.datafolder, 'logit_maps'), transform=test_transform)
+        elif params.dataset == SupportedDatasets.SPEECHCOMMANDS:
+            train_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='training', download=True)
+            val_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='validation', download=True)
+            test_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='testing', download=True)
         elif cfg.dataset_class == torchvision.datasets.ImageFolder:
             train_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'train'), transform=train_transform)
             if os.path.exists(os.path.join(params.datafolder, 'test')):
