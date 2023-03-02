@@ -422,23 +422,28 @@ class PytorchLightningTrainer(pl.LightningModule):
     # def training_epoch_end(self, outputs) -> None:
     #     self._epoch_end(outputs)
 
-    def on_validation_start(self) -> None:
-        self.accuracy_tracker.reset()
-        self.loss_tracker.reset()
+    # def on_validation_start(self) -> None:
+    #     self.accuracy_tracker.reset()
+    #     self.loss_tracker.reset()
 
     def validation_step(self, batch, batch_idx):        
         output = self.forward_step(batch, batch_idx)
+        return output
+    
+    def validation_step_end(self, output):
         logs = output.pop('logs')
         output['loss'] = output['loss'].detach()
 
         self.accuracy_tracker.update(logs['accuracy'])
         self.loss_tracker.update(logs['loss'])
 
+        logs['accuracy'] = self.accuracy_tracker#.compute()
+        logs['loss'] = self.loss_tracker#.compute()
         _logs = {}
         for k,v in logs.items():
             _logs['val_'+k] = v
         output['logs'] = _logs
-        self.log_dict(_logs, prog_bar=True, rank_zero_only=True)
+        self.log_dict(_logs, prog_bar=True, rank_zero_only=True, sync_dist=True)
         return output
     
     # def validation_step_end(self, output):
@@ -475,7 +480,7 @@ class PytorchLightningTrainer(pl.LightningModule):
         output = self._maybe_average_dict(output)
         logs = self._maybe_average_dict(logs)
         output['logs'] = logs
-        self.log_dict(logs, on_step=True, prog_bar=True, rank_zero_only=True)
+        self.log_dict(logs, on_step=True, prog_bar=True, rank_zero_only=True, sync_dist=True)
         return output
 
     def configure_optimizers(self):
@@ -483,8 +488,19 @@ class PytorchLightningTrainer(pl.LightningModule):
             'scheduler': self.scheduler,
             'interval': 'epoch' if self.scheduler_step_after_epoch else 'step'
         }
+        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            scheduler_config['monitor'] = self.tracked_metric
         self.optimizer.param_groups[0]['lr'] = self.lr
         return [self.optimizer], [scheduler_config]
+
+    # def on_before_optimizer_step(self, optimizer, optimizer_idx: int) -> None:
+    #     print(torch.norm(torch.nn.utils.parameters_to_vector(self.model.parameters())))
+    #     return super().on_before_optimizer_step(optimizer, optimizer_idx)
+    
+    # def optimizer_step(self, epoch: int, batch_idx: int, optimizer, optimizer_idx: int = 0, optimizer_closure = None, on_tpu: bool = False, using_native_amp: bool = False, using_lbfgs: bool = False) -> None:
+    #     out = super().optimizer_step(epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure, on_tpu, using_native_amp, using_lbfgs)
+    #     print(torch.norm(torch.nn.utils.parameters_to_vector(self.model.parameters())))
+    #     return out
 
     def configure_callbacks(self):
         early_stop =  EarlyStopping(monitor=self.tracked_metric, mode=self.tracking_mode, 
