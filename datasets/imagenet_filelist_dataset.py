@@ -49,14 +49,18 @@ class ImagenetFileListDataset(torchvision.datasets.VisionDataset):
         self.targets = np.array(self.targets)
 
     def __getitem__(self, index: int) -> Any:
-        pth = self.samples[index]
-        with open(pth, 'rb') as f:
-            x = Image.open(f).convert("RGB")
-        y = self.targets[index]
-        if self.transform is not None:
-            x = self.transform(x)
-        if self.target_transform is not None:
-            y = self.target_transform(y)
+        try:
+            pth = self.samples[index]
+            with open(pth, 'rb') as f:
+                x = Image.open(f).convert("RGB")
+            y = self.targets[index]
+            if self.transform is not None:
+                x = self.transform(x)
+            if self.target_transform is not None:
+                y = self.target_transform(y)
+        except:
+            print(f'Error loading {self.samples[index]}')
+            x, y = self.__getitem__(np.random.randint(0, len(self.samples)))
 
         return x, y
     
