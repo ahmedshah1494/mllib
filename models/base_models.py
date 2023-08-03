@@ -23,8 +23,8 @@ class AbstractModel(nn.Module):
         pass
 
     @classmethod
-    def get_params(cls):
-        return cls.ModelParams(cls)
+    def get_params(cls, **kwargs):
+        return cls.ModelParams(cls, **kwargs)
 
     def compute_loss(self, x, y, return_logits=True):
         pass
