@@ -27,9 +27,10 @@ def make_val_dataset(dataset, num_classes, train_class_counts, class_idxs=None):
     train_idxs = []        
     val_idxs = []
     class_counts = {i:0 for i in range(num_classes)}
-
-    for i,y in tqdm(enumerate(dataset.targets)):
-        # y = sample[1]
+    from numpy.random import Generator, PCG64
+    rng = Generator(PCG64(625130565))
+    for i in tqdm(rng.permutation(len(dataset.targets))):
+        y = dataset.targets[i]
         if class_counts[int(y)] < train_class_counts:
             train_idxs.append(i)
             class_counts[int(y)] += 1
