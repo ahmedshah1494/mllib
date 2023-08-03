@@ -44,6 +44,12 @@ class ReduceLROnPlateauConfig(AbstractSchedulerConfig):
     patience: int = 5
     mode: str = 'min'
     factor: float = 0.5
+    threshold: float = 1e-4
+    threshold_mode: str = 'rel'
+    cooldown: int = 0
+    min_lr: float = 0
+    eps: float = 1e-8
+    verbose: bool = False
 
 @define(slots=False)
 class CosineAnnealingWarmRestartsConfig(AbstractSchedulerConfig):
