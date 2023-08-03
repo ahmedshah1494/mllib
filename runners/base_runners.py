@@ -118,22 +118,27 @@ class BaseRunner(AbstractRunner):
             model = p.cls(p)
         return model
 
-    def get_experiment_dir(self, logdir, exp_name):
-        def is_exp_complete(i):
-            return os.path.exists(os.path.join(logdir, str(i), 'task.pkl'))
-        # if self.load_model_from_ckp:
-        #     return self.ckp_dir
-        exp_params = self.task.get_experiment_params()
+    def _is_exp_complete(self, logdir, i):
+        return os.path.exists(os.path.join(logdir, str(i), 'task.pkl'))
+
+    def _get_expdir(self, logdir, exp_name):
         exp_name = f'-{exp_name}' if len(exp_name) > 0 else exp_name
         task_name = type(self.task).__name__
-        logdir = os.path.join(exp_params.logdir, task_name+exp_name)
-        exp_num = len(os.listdir(logdir)) if os.path.exists(logdir) else 0
-        exp_num = 0
-        while is_exp_complete(exp_num):
-            exp_num += 1
-        logdir = os.path.join(logdir, str(exp_num))
-        if os.path.exists(logdir):
-            shutil.rmtree(logdir)
+        expdir = os.path.join(logdir, task_name+exp_name)
+        return expdir
+    
+    def get_experiment_dir(self, logdir, exp_name):
+        if self.lightning_kwargs.get('resume_from_checkpoint', None):
+            logdir = os.path.dirname(os.path.dirname(self.lightning_kwargs['resume_from_checkpoint']))
+        else:
+            logdir = self._get_expdir(logdir, exp_name)
+            exp_num = len(os.listdir(logdir)) if os.path.exists(logdir) else 0
+            exp_num = 0
+            while self._is_exp_complete(logdir, exp_num):
+                exp_num += 1
+            logdir = os.path.join(logdir, str(exp_num))
+            # if os.path.exists(logdir):
+            #     shutil.rmtree(logdir)
         print(f'writing logs to {logdir}')
         return logdir
 
