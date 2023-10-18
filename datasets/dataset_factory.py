@@ -49,6 +49,7 @@ class SupportedDatasets(AutoName):
     MNIST = auto()
     FMNIST = auto()
     SVHN = auto()
+    SPEECHCOMMANDS10 = auto()
     SPEECHCOMMANDS = auto()
     LIBRISPEECH = auto()
     CLICKME = auto()
@@ -82,9 +83,13 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                                         LibrispeechFilelistDataset,
                                         1000, 300_000, 300_000
         ),
-        SupportedDatasets.SPEECHCOMMANDS: DatasetConfig(
+        SupportedDatasets.SPEECHCOMMANDS10: DatasetConfig(
                                         SpeechCommandDatasetWrapper,
                                         10, 4000, 4000
+                                    ),
+        SupportedDatasets.SPEECHCOMMANDS: DatasetConfig(
+                                        SpeechCommandDatasetWrapper,
+                                        35, 5000, 11005
                                     ),
         SupportedDatasets.MNIST : DatasetConfig(
                                         torchvision.datasets.MNIST,
@@ -297,6 +302,11 @@ class ImageDatasetFactory(AbstractDatasetFactory):
                 val_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
             else:
                 test_dataset = torchvision.datasets.ImageFolder(os.path.join(params.datafolder, 'val'), transform=test_transform)
+        elif params.dataset == SupportedDatasets.SPEECHCOMMANDS10:
+            commands_to_include = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+            train_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='training', download=True, classes_to_include=commands_to_include)
+            val_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='validation', download=True, classes_to_include=commands_to_include)
+            test_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='testing', download=True, classes_to_include=commands_to_include)
         elif params.dataset == SupportedDatasets.SPEECHCOMMANDS:
             train_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='training', download=True)
             val_dataset = SpeechCommandDatasetWrapper(params.datafolder, subset='validation', download=True)

@@ -6,9 +6,14 @@ import os
 import numpy as np
 
 class SpeechCommandDatasetWrapper(torchaudio.datasets.SPEECHCOMMANDS):
-    def __init__(self, root, url: str = "speech_commands_v0.02", folder_in_archive: str = "SpeechCommands", download: bool = False, subset = None) -> None:
+    def __init__(self, root, url: str = "speech_commands_v0.02", folder_in_archive: str = "SpeechCommands", download: bool = False, subset = None,
+                 classes_to_include = None) -> None:
         super().__init__(root, url, folder_in_archive, download, subset)
-        classes_to_include = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+        if classes_to_include is None:
+            classes_to_include = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+                                  'backward', 'no', 'visual', 'marvin', 'cat', 'sheila', 'bed', 'tree', 'forward',
+                                  'yes', 'stop', 'wow', 'on', 'down', 'dog', 'happy', 'learn', 'go', 'right',
+                                  'bird', 'left', 'follow', 'off', 'up', 'house']
         self._walker = [w for w in self._walker if w.split('/')[-2] in classes_to_include]
         self.class_to_idx = {c:i for i, c in enumerate(classes_to_include)}
         self.targets = [self.class_to_idx[w.split('/')[-2]] for w in self._walker]
