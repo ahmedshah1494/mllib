@@ -13,10 +13,11 @@ import torch
 
 from torchattacks.attack import Attack
 import torchattacks
-from autoattack.autopgd_base import APGDAttack
+from autoattack.autoattack import AutoAttack
 import foolbox
 
 class SupportedAttacks(Enum):
+    FGSMINF = auto()
     PGDL2 = auto()
     PGDLINF = auto()
     APGDLINF = auto()
@@ -63,6 +64,10 @@ def get_randomly_targeted_torchattack_cls(atkcls: torchattacks.attack.Attack):
     
     return RandomlyTargetedAttack
 
+@define(slots=False)
+class TorchAttackFGSMInfParams(AbstractAttackConfig):
+    _cls = torchattacks.FGSM
+    eps: float = 8/255
 @define(slots=False)
 class TorchAttackPGDInfParams(AbstractAttackConfig):
     _cls = torchattacks.PGD
@@ -117,12 +122,18 @@ class AutoAttackkWrapper:
     atkcls = None
     def __init__(self, *args, **kwargs) -> None:
         self.attack = self.atkcls(*args, **kwargs)
+        print(self.attack.epsilon)
     
     def __call__(self, x, y):
-        return self.attack.perturb(x, y)
+        return self.attack.run_standard_evaluation(x, y)
+
+class WrappedAutoAttackAutoAttack(AutoAttackkWrapper):
+    atkcls = AutoAttack
 
 class WrappedAutoAttackAPGD(AutoAttackkWrapper):
-    atkcls = APGDAttack
+    def __init__():
+        from mllib.adversarial.lib.autoattack.autopgd_base import APGDAttack
+        atkcls = APGDAttack
 
 @define(slots=False)
 class AutoAttackAPGDL1Params(AbstractAttackConfig):
@@ -143,6 +154,23 @@ class AutoAttackAPGDL1Params(AbstractAttackConfig):
         return d
 
 @define(slots=False)
+class AutoAttackAPGDLinfParams(AutoAttackAPGDL1Params):
+    norm: str = 'Linf'
+
+@define(slots=False)
+class AutoAttackAutoAttackParams(AbstractAttackConfig):
+    _cls = WrappedAutoAttackAutoAttack
+    norm:str='Linf'
+    eps:float=.3
+    seed:int=None
+    verbose:bool=True
+    attacks_to_run:List[str]=[]
+    version:str='standard'
+    is_tf_model:bool=False
+    device:str='cuda' if torch.cuda.is_available() else 'cpu'
+    log_path:str=None
+
+@define(slots=False)
 class TorchAttackSquareInfParams(AbstractAttackConfig):
     _cls = torchattacks.Square
     eps: float = 8/255
@@ -154,7 +182,7 @@ class TorchAttackSquareInfParams(AbstractAttackConfig):
 class TorchAttackRandomlyTargetedSquareInfParams(TorchAttackSquareInfParams):
     _cls = get_randomly_targeted_torchattack_cls(TorchAttackSquareInfParams._cls)
 
-class AutoAttack(torchattacks.attack.Attack):
+class TAAutoAttack(torchattacks.attack.Attack):
     def __init__(self, model, norm='Linf', eps=.3, version='standard', n_classes=10, seed=None, verbose=False):
         super().__init__("AutoAttack", model)
         self.norm = norm
@@ -184,7 +212,7 @@ class AutoAttack(torchattacks.attack.Attack):
 
 @define(slots=False)
 class TorchAttackAutoAttackParams(AbstractAttackConfig):
-    _cls = AutoAttack
+    _cls = TAAutoAttack
     eps: float = 8/255
     norm: str = 'Linf'
     version='standard'
@@ -252,6 +280,7 @@ class FoolboxCWL2AttackInitParams(AbstractAttackConfig):
 
 class AttackParamFactory:
     torchattack_params = {
+        SupportedAttacks.FGSMINF: TorchAttackFGSMInfParams,
         SupportedAttacks.PGDLINF: TorchAttackPGDInfParams,
         SupportedAttacks.APGDLINF: TorchAttackAPGDInfParams,
         SupportedAttacks.APGDL2: TorchAttackAPGDL2Params,
@@ -265,7 +294,9 @@ class AttackParamFactory:
         SupportedAttacks.CWL2: FoolboxCWL2AttackInitParams,
     }
     autoattack_params = {
-        SupportedAttacks.APGDL1: AutoAttackAPGDL1Params
+        SupportedAttacks.APGDL1: AutoAttackAPGDL1Params,
+        SupportedAttacks.APGDLINF: AutoAttackAPGDLinfParams,
+        SupportedAttacks.AUTOATTACK: AutoAttackAutoAttackParams,
     }
     backend_params = {
         SupportedBackend.TORCHATTACKS: torchattack_params,
