@@ -30,6 +30,7 @@ setup(
         'tensorboard==2.10.0',
         'tensorboard-data-server==0.6.1',
         'tensorboardx==2.5.1',
-        'pytorch-lightning==1.7.6'
+        'pytorch-lightning==1.7.6',
+        'pip install git+https://github.com/fra31/auto-attack'
     ],
 )
